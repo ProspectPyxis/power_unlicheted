@@ -23,7 +23,7 @@ pub fn update_enemy(
     q_player: Query<&Transform, With<Player>>,
 ) {
     let player = q_player.single();
-    for (enemy, mut transform, mut sprite) in q_enemies.iter_mut() {
+    for (enemy, transform, mut sprite) in q_enemies.iter_mut() {
         let current_pos = transform.translation.clone();
         match enemy.ai {
             EnemyAI::ChasesPlayer { speed } => {
