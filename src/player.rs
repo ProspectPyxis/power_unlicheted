@@ -1,5 +1,6 @@
 use crate::common::{
-    get_cursor_position, AngledMovement, DespawnTimer, GameSprites, MainCamera, Player, Projectile,
+    angle_between_points, get_cursor_position, AngledMovement, DespawnTimer, GameSprites,
+    MainCamera, Player, Projectile,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 
@@ -21,18 +22,18 @@ pub fn player_move(
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     if let Some((mut transform, mut sprite)) = q.iter_mut().next() {
-        if keyboard_input.pressed(KeyCode::Left) {
+        if keyboard_input.pressed(KeyCode::A) {
             transform.translation.x -= 4.0;
             sprite.flip_x = true;
         }
-        if keyboard_input.pressed(KeyCode::Right) {
+        if keyboard_input.pressed(KeyCode::D) {
             transform.translation.x += 4.0;
             sprite.flip_x = false;
         }
-        if keyboard_input.pressed(KeyCode::Up) {
+        if keyboard_input.pressed(KeyCode::W) {
             transform.translation.y += 4.0;
         }
-        if keyboard_input.pressed(KeyCode::Down) {
+        if keyboard_input.pressed(KeyCode::S) {
             transform.translation.y -= 4.0;
         }
     }
@@ -62,10 +63,9 @@ pub fn player_shoot(
                 .insert(Projectile)
                 .insert(AngledMovement {
                     speed: 4.0,
-                    angle: (cursor_pos.y - player.translation.y)
-                        .atan2(cursor_pos.x - player.translation.x),
+                    angle: angle_between_points(player.translation.truncate(), cursor_pos),
                 })
-                .insert(DespawnTimer(Timer::from_seconds(1.0, false)));
+                .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
         }
     }
 }

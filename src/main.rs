@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 mod common;
+mod enemy;
 mod player;
 mod setup;
 

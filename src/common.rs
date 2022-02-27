@@ -7,6 +7,8 @@ pub struct GameSprites {
     pub lich: Handle<Image>,
     #[asset(path = "sprites/fireball.png")]
     pub fireball: Handle<Image>,
+    #[asset(path = "sprites/soldier.png")]
+    pub soldier: Handle<Image>,
 }
 
 // Components
@@ -20,6 +22,15 @@ pub struct Player;
 #[derive(Component)]
 pub struct Projectile;
 
+pub enum EnemyAI {
+    ChasesPlayer { speed: f32 },
+}
+
+#[derive(Component)]
+pub struct Enemy {
+    pub ai: EnemyAI,
+}
+
 #[derive(Component)]
 pub struct AngledMovement {
     pub speed: f32,
@@ -30,6 +41,17 @@ pub struct AngledMovement {
 pub struct DespawnTimer(pub Timer);
 
 // Functions
+
+/// Moves the transform by a certain speed, at the angle (in radians).
+pub fn move_in_direction(mut transform: Mut<Transform>, speed: f32, angle: f32) {
+    transform.translation.x += speed * angle.cos();
+    transform.translation.y += speed * angle.sin();
+}
+
+/// Get the angle from point v1 to point v2.
+pub fn angle_between_points(v1: Vec2, v2: Vec2) -> f32 {
+    (v2.y - v1.y).atan2(v2.x - v1.x)
+}
 
 /// Gets the position of the cursor.
 /// Taken from the bevy cheatbook: https://bevy-cheatbook.github.io/cookbook/cursor2world.html
@@ -55,9 +77,8 @@ pub fn get_cursor_position(
 
 /// Move all entities with the AngledMovement component
 pub fn apply_angled_movement(mut q_angled: Query<(&mut Transform, &AngledMovement)>) {
-    for (mut transform, angle) in q_angled.iter_mut() {
-        transform.translation.x += angle.speed * angle.angle.cos();
-        transform.translation.y += angle.speed * angle.angle.sin();
+    for (transform, angle) in q_angled.iter_mut() {
+        move_in_direction(transform, angle.speed, angle.angle);
     }
 }
 
