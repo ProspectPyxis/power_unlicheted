@@ -1,5 +1,5 @@
 use crate::common::{
-    get_cursor_position, AngledMovement, GameSprites, MainCamera, Player, Projectile,
+    get_cursor_position, AngledMovement, DespawnTimer, GameSprites, MainCamera, Player, Projectile,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 
@@ -64,7 +64,8 @@ pub fn player_shoot(
                     speed: 4.0,
                     angle: (cursor_pos.y - player.translation.y)
                         .atan2(cursor_pos.x - player.translation.x),
-                });
+                })
+                .insert(DespawnTimer(Timer::from_seconds(1.0, false)));
         }
     }
 }

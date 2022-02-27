@@ -1,5 +1,5 @@
 use crate::{
-    common::{apply_angled_movement, GameSprites, MainCamera},
+    common::{apply_angled_movement, check_despawn, GameSprites, MainCamera},
     player::{player_move, player_shoot, spawn_player},
 };
 use bevy::prelude::*;
@@ -37,6 +37,7 @@ impl Plugin for GameSetup {
             .add_system_set(
                 SystemSet::on_update(GameState::Start)
                     .with_system(apply_angled_movement)
+                    .with_system(check_despawn)
                     .with_system(player_move)
                     .with_system(player_shoot),
             );
