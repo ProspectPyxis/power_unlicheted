@@ -8,6 +8,7 @@ impl Plugin for GameSetup {
             title: "Lich thing".to_string(),
             width: 640.0,
             height: 480.0,
+            ..Default::default()
         })
         .add_plugins(DefaultPlugins);
     }
