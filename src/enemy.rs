@@ -1,6 +1,8 @@
-use crate::common::{angle_between_points, move_in_direction, Enemy, EnemyAI, GameSprites, Player};
+use crate::common::{
+    angle_between_points, move_in_direction, Enemy, EnemyAI, GameSprites, Player, RectCollider,
+};
 use bevy::prelude::*;
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, PI};
 
 pub fn spawn_enemy(mut commands: Commands, sprites: Res<GameSprites>) {
     commands
@@ -15,6 +17,10 @@ pub fn spawn_enemy(mut commands: Commands, sprites: Res<GameSprites>) {
         })
         .insert(Enemy {
             ai: EnemyAI::ChasesPlayer { speed: 2.0 },
+        })
+        .insert(RectCollider {
+            width: 22.5,
+            height: 30.0,
         });
 }
 
@@ -30,9 +36,7 @@ pub fn update_enemy(
                 let angle =
                     angle_between_points(current_pos.truncate(), player.translation.truncate());
                 move_in_direction(transform, speed, angle);
-                if (angle / FRAC_PI_2).ceil() % 4.0 == 2.0
-                    || (angle / FRAC_PI_2).ceil() % 4.0 == 3.0
-                {
+                if ((angle + FRAC_PI_2) / PI).rem_euclid(2.0).floor() == 1.0 {
                     sprite.flip_x = true;
                 } else {
                     sprite.flip_x = false;

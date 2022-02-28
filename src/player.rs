@@ -1,6 +1,6 @@
 use crate::common::{
     angle_between_points, get_cursor_position, AngledMovement, DespawnTimer, GameSprites,
-    MainCamera, Player, Projectile,
+    MainCamera, Player, Projectile, RectCollider,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 
@@ -65,7 +65,8 @@ pub fn player_shoot(
                     speed: 4.0,
                     angle: angle_between_points(player.translation.truncate(), cursor_pos),
                 })
-                .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
+                .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
+                .insert(RectCollider::square(32.0));
         }
     }
 }
