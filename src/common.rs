@@ -33,7 +33,9 @@ pub struct Enemy {
 }
 
 #[derive(Component)]
-pub struct HealthBarUI;
+pub enum Ui {
+    HealthBarMain,
+}
 
 #[derive(Component)]
 pub struct Health {
@@ -68,17 +70,31 @@ pub enum GamePhysicsLayer {
 // Functions
 
 pub trait Vec3Utils {
-    fn rotate_2d(&self, angle: f32) -> Self;
+    fn rotate_2d(self, angle: f32) -> Self;
+
+    fn line_overlaps_circle(self, velocity: Vec3, ahead_len: f32, c_pos: Vec2, c_r: f32) -> bool;
 }
 
 impl Vec3Utils for Vec3 {
     /// Rotates a vector by a given amount of radians.
-    fn rotate_2d(&self, angle: f32) -> Self {
+    fn rotate_2d(self, angle: f32) -> Self {
         Vec3::new(
             self.x * angle.cos() - self.y * angle.sin(),
             self.x * angle.sin() + self.y * angle.cos(),
             self.z,
         )
+    }
+
+    fn line_overlaps_circle(self, velocity: Vec3, ahead_len: f32, c_pos: Vec2, c_r: f32) -> bool {
+        for i in 0..3 {
+            if (self + velocity.normalize() * ahead_len * i as f32 / 2.0)
+                .distance(c_pos.extend(0.0))
+                <= c_r
+            {
+                return true;
+            }
+        }
+        false
     }
 }
 

@@ -1,20 +1,17 @@
 use crate::common::{
-    get_cursor_position, DespawnTimer, GamePhysicsLayer, GameSprites, Health, HealthBarUI,
-    MainCamera, Player, Projectile, RegeneratesHealth, Vec3Utils,
+    get_cursor_position, DespawnTimer, GamePhysicsLayer, GameSprites, Health, MainCamera, Player,
+    Projectile, RegeneratesHealth, Ui, Vec3Utils,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
 use std::f32::consts::PI;
 
-pub fn spawn_player(
-    mut commands: Commands,
-    sprites: Res<GameSprites>,
-    asset_server: Res<AssetServer>,
-) {
+pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
     let player = commands
         .spawn_bundle(SpriteBundle {
             texture: sprites.lich.clone(),
             transform: Transform {
+                translation: Vec3::new(0.0, 0.0, 0.5),
                 scale: Vec3::new(4.0, 4.0, 0.0),
                 ..Default::default()
             },
@@ -22,7 +19,7 @@ pub fn spawn_player(
         })
         .insert(Player)
         .insert(RigidBody::KinematicPositionBased)
-        .insert(CollisionShape::Sphere { radius: 32.0 })
+        .insert(CollisionShape::Sphere { radius: 24.0 })
         .insert(CollisionLayers::new(
             GamePhysicsLayer::Player,
             GamePhysicsLayer::Enemy,
@@ -38,26 +35,29 @@ pub fn spawn_player(
         })
         .id();
 
-    let ui_font = asset_server.load("fonts/OpenSans-Regular.ttf");
-    let text_style = TextStyle {
-        font: ui_font,
-        font_size: 20.0,
-        color: Color::GREEN,
-    };
-    let text_alignment = TextAlignment {
-        vertical: VerticalAlign::Center,
-        horizontal: HorizontalAlign::Center,
-    };
-    let health_bar = commands
-        .spawn_bundle(Text2dBundle {
-            text: Text::with_section("1000", text_style, text_alignment),
-            transform: Transform::from_translation(Vec3::new(0.0, -20.0, -1.0)),
+    let hp_bar_main = spawn_health_bar(&mut commands);
+    commands.entity(player).add_child(hp_bar_main);
+}
+
+fn spawn_health_bar(commands: &mut Commands) -> Entity {
+    let hp_bar_main = commands
+        .spawn_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::GREEN,
+                custom_size: Some(Vec2::new(100.0, 12.0)),
+                ..Default::default()
+            },
+            transform: Transform {
+                translation: Vec3::new(0.0, -15.0, 1.0),
+                scale: Vec3::new(0.25, 0.25, 0.0),
+                ..Default::default()
+            },
             ..Default::default()
         })
-        .insert(HealthBarUI)
+        .insert(Ui::HealthBarMain)
         .id();
 
-    commands.entity(player).push_children(&[health_bar]);
+    hp_bar_main
 }
 
 pub fn player_move(
@@ -125,11 +125,20 @@ pub fn player_shoot(
 }
 
 pub fn update_health_display(
-    mut q_health_bar: Query<(&Parent, &mut Text), With<HealthBarUI>>,
+    mut q_health_bar: Query<(&Parent, &mut Sprite, &Ui)>,
     q_player: Query<&Health, With<Player>>,
 ) {
-    for (parent, mut text) in q_health_bar.iter_mut() {
-        let player = q_player.get(parent.0).unwrap();
-        text.sections[0].value = format!("{}", player.current.floor() as i32);
+    for (parent, mut sprite) in q_health_bar.iter_mut().filter_map(|(p, s, i)| match i {
+        Ui::HealthBarMain => Some((p, s)),
+        _ => None,
+    }) {
+        if let Ok(health) = q_player.get(parent.0) {
+            sprite.custom_size = Some(Vec2::new((health.current / health.maximum) * 100.0, 12.0));
+            if health.current <= health.maximum * 0.25 {
+                sprite.color = Color::RED;
+            } else {
+                sprite.color = Color::GREEN;
+            }
+        }
     }
 }
