@@ -41,21 +41,6 @@ pub struct AngledMovement {
 #[derive(Component)]
 pub struct DespawnTimer(pub Timer);
 
-#[derive(Component)]
-pub struct RectCollider {
-    pub width: f32,
-    pub height: f32,
-}
-
-impl RectCollider {
-    pub fn square(size: f32) -> Self {
-        Self {
-            width: size,
-            height: size,
-        }
-    }
-}
-
 #[derive(PhysicsLayer)]
 pub enum GamePhysicsLayer {
     Player,
@@ -64,12 +49,6 @@ pub enum GamePhysicsLayer {
 }
 
 // Functions
-
-/// Moves the transform by a certain speed, at the angle (in radians).
-pub fn move_in_direction(mut transform: Mut<Transform>, speed: f32, angle: f32) {
-    transform.translation.x += speed * angle.cos();
-    transform.translation.y += speed * angle.sin();
-}
 
 /// Get the angle from point v1 to point v2.
 pub fn angle_between_points(v1: Vec2, v2: Vec2) -> f32 {
@@ -101,32 +80,7 @@ pub fn get_cursor_position(
     }
 }
 
-/// Checks the collision between two square colliders.
-pub fn check_squares_collision(
-    c1: &RectCollider,
-    c2: &RectCollider,
-    t1: &Transform,
-    t2: &Transform,
-) -> bool {
-    let c1_half_width = c1.width / 2.0;
-    let c1_half_height = c1.height / 2.0;
-    let c2_half_width = c2.width / 2.0;
-    let c2_half_height = c2.height / 2.0;
-
-    t1.translation.x - c1_half_width < t2.translation.x + c2_half_width
-        && t1.translation.x + c1_half_width > t2.translation.x - c2_half_width
-        && t1.translation.y + c1_half_height > t2.translation.y - c2_half_height
-        && t1.translation.y - c1_half_height < t2.translation.y + c2_half_height
-}
-
 // Systems
-
-/// Move all entities with the AngledMovement component
-pub fn apply_angled_movement(mut q_angled: Query<(&mut Transform, &AngledMovement)>) {
-    for (transform, angle) in q_angled.iter_mut() {
-        move_in_direction(transform, angle.speed, angle.angle);
-    }
-}
 
 /// Ticks all entities that can despawn, and despawn them if their time is up
 pub fn check_despawn(

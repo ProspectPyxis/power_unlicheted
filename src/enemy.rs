@@ -39,7 +39,11 @@ pub fn spawn_enemy(
         .insert(
             CollisionLayers::none()
                 .with_group(GamePhysicsLayer::Enemy)
-                .with_masks(&[GamePhysicsLayer::Enemy, GamePhysicsLayer::Projectile]),
+                .with_masks(&[
+                    GamePhysicsLayer::Enemy,
+                    GamePhysicsLayer::Projectile,
+                    GamePhysicsLayer::Player,
+                ]),
         );
 }
 
@@ -60,6 +64,31 @@ pub fn update_enemy(
                 } else {
                     sprite.flip_x = false;
                 }
+            }
+        }
+    }
+}
+
+pub fn enemy_damage_player(mut collision_events: EventReader<CollisionEvent>) {
+    fn is_player(layers: CollisionLayers) -> bool {
+        layers.contains_group(GamePhysicsLayer::Player)
+            && !layers.contains_group(GamePhysicsLayer::Enemy)
+    }
+    fn is_enemy(layers: CollisionLayers) -> bool {
+        layers.contains_group(GamePhysicsLayer::Enemy)
+            && !layers.contains_group(GamePhysicsLayer::Player)
+    }
+
+    for evt in collision_events.iter().filter(|&e| {
+        let (layers_1, layers_2) = e.collision_layers();
+        (is_enemy(layers_1) && is_player(layers_2)) || (is_enemy(layers_2) && is_player(layers_1))
+    }) {
+        match evt {
+            CollisionEvent::Started(d1, d2) => {
+                println!("Collision started between {:?} and {:?}", d1, d2)
+            }
+            CollisionEvent::Stopped(d1, d2) => {
+                println!("Collision stopped between {:?} and {:?}", d1, d2)
             }
         }
     }

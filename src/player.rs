@@ -15,7 +15,16 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
             },
             ..Default::default()
         })
-        .insert(Player);
+        .insert(Player)
+        .insert(RigidBody::KinematicPositionBased)
+        .insert(CollisionShape::Cuboid {
+            half_extends: Vec3::new(32.0, 40.0, 0.0),
+            border_radius: None,
+        })
+        .insert(CollisionLayers::new(
+            GamePhysicsLayer::Player,
+            GamePhysicsLayer::Enemy,
+        ));
 }
 
 pub fn player_move(
