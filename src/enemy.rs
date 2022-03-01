@@ -4,7 +4,6 @@ use crate::common::{
 use bevy::prelude::*;
 use heron::prelude::*;
 use itertools::Itertools;
-use std::f32::consts::{FRAC_PI_2, PI};
 
 pub fn spawn_enemy_wave(mut commands: Commands, sprites: Res<GameSprites>) {
     let wave_width = alea::u32_in_range(4, 7);
@@ -36,7 +35,7 @@ pub fn spawn_enemy_wave(mut commands: Commands, sprites: Res<GameSprites>) {
                 CollisionLayers::none()
                     .with_group(GamePhysicsLayer::Enemy)
                     .with_masks(&[
-                        GamePhysicsLayer::Projectile,
+                        GamePhysicsLayer::PlayerAttack,
                         GamePhysicsLayer::Player,
                         // GamePhysicsLayer::Enemy,
                     ]),

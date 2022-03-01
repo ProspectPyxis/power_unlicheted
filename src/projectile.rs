@@ -7,12 +7,12 @@ pub fn check_projectile_collision(
     mut collision_events: EventReader<CollisionEvent>,
 ) {
     fn is_projectile(layers: CollisionLayers) -> bool {
-        layers.contains_group(GamePhysicsLayer::Projectile)
+        layers.contains_group(GamePhysicsLayer::PlayerAttack)
             && !layers.contains_group(GamePhysicsLayer::Enemy)
     }
     fn is_enemy(layers: CollisionLayers) -> bool {
         layers.contains_group(GamePhysicsLayer::Enemy)
-            && !layers.contains_group(GamePhysicsLayer::Projectile)
+            && !layers.contains_group(GamePhysicsLayer::PlayerAttack)
     }
 
     for ent in collision_events

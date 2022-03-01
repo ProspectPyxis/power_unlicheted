@@ -115,7 +115,7 @@ pub fn player_shoot(
                     ))
                     .insert(CollisionShape::Sphere { radius: 16.0 })
                     .insert(CollisionLayers::new(
-                        GamePhysicsLayer::Projectile,
+                        GamePhysicsLayer::PlayerAttack,
                         GamePhysicsLayer::Enemy,
                     ))
                     .insert(DespawnTimer(Timer::from_seconds(1.5, false)));

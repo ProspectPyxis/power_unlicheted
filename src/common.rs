@@ -35,6 +35,7 @@ pub struct Enemy {
 #[derive(Component)]
 pub enum Ui {
     HealthBarMain,
+    AbilitySelect,
 }
 
 #[derive(Component)]
@@ -58,12 +59,17 @@ pub struct DamagesPlayer {
 }
 
 #[derive(Component)]
+pub struct DamagesEnemy {
+    pub damage: f32,
+}
+
+#[derive(Component)]
 pub struct DespawnTimer(pub Timer);
 
 #[derive(PhysicsLayer)]
 pub enum GamePhysicsLayer {
     Player,
-    Projectile,
+    PlayerAttack,
     Enemy,
 }
 
