@@ -33,9 +33,26 @@ pub struct Enemy {
 }
 
 #[derive(Component)]
-pub struct AngledMovement {
-    pub speed: f32,
-    pub angle: f32,
+pub struct HealthBarUI;
+
+#[derive(Component)]
+pub struct Health {
+    pub current: f32,
+    pub maximum: f32,
+}
+
+#[derive(Component)]
+pub struct RegeneratesHealth {
+    pub regen: f32,
+    pub tick: Timer,
+    pub is_regenerating: bool,
+}
+
+#[derive(Component)]
+pub struct DamagesPlayer {
+    pub damage: f32,
+    pub tick: Timer,
+    pub is_damaging: bool,
 }
 
 #[derive(Component)]
@@ -91,6 +108,19 @@ pub fn check_despawn(
     for (ent, mut timer) in q_despawn.iter_mut() {
         if timer.0.tick(time.delta()).just_finished() {
             commands.entity(ent).despawn();
+        }
+    }
+}
+
+/// Regenerates health for all entities that can regenerate health.
+pub fn regen_health(mut q_regen: Query<(&mut Health, &mut RegeneratesHealth)>, time: Res<Time>) {
+    for (mut health, mut regen) in q_regen.iter_mut().filter(|(_, e)| e.is_regenerating) {
+        if health.current < health.maximum {
+            if regen.tick.tick(time.delta()).just_finished() {
+                health.current = (health.current + regen.regen).min(health.maximum);
+            }
+        } else {
+            regen.tick.reset();
         }
     }
 }

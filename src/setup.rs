@@ -1,7 +1,7 @@
 use crate::{
-    common::{check_despawn, GameSprites, MainCamera},
-    enemy::{enemy_damage_player, spawn_enemy, update_enemy},
-    player::{player_move, player_shoot, spawn_player},
+    common::{check_despawn, regen_health, GameSprites, MainCamera},
+    enemy::{check_enemy_player_collision, enemy_damage_player, spawn_enemy, update_enemy},
+    player::{player_move, player_shoot, spawn_player, update_health_display},
     projectile::check_projectile_collision,
 };
 use bevy::{core::FixedTimestep, prelude::*};
@@ -44,8 +44,11 @@ impl Plugin for GameSetup {
                     .with_system(player_move)
                     .with_system(player_shoot)
                     .with_system(update_enemy)
+                    .with_system(enemy_damage_player)
                     .with_system(check_projectile_collision)
-                    .with_system(enemy_damage_player),
+                    .with_system(check_enemy_player_collision)
+                    .with_system(regen_health)
+                    .with_system(update_health_display),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Start)

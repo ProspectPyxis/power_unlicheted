@@ -1,6 +1,6 @@
 use crate::common::{
-    angle_between_points, vec3_from_magnitude_angle, Enemy, EnemyAI, GamePhysicsLayer, GameSprites,
-    Player,
+    angle_between_points, vec3_from_magnitude_angle, DamagesPlayer, Enemy, EnemyAI,
+    GamePhysicsLayer, GameSprites, Health, Player,
 };
 use bevy::prelude::*;
 use heron::prelude::*;
@@ -39,12 +39,13 @@ pub fn spawn_enemy(
         .insert(
             CollisionLayers::none()
                 .with_group(GamePhysicsLayer::Enemy)
-                .with_masks(&[
-                    GamePhysicsLayer::Enemy,
-                    GamePhysicsLayer::Projectile,
-                    GamePhysicsLayer::Player,
-                ]),
-        );
+                .with_masks(&[GamePhysicsLayer::Projectile, GamePhysicsLayer::Player]),
+        )
+        .insert(DamagesPlayer {
+            damage: 1.0,
+            tick: Timer::from_seconds(1.0, true),
+            is_damaging: false,
+        });
 }
 
 pub fn update_enemy(
@@ -69,7 +70,10 @@ pub fn update_enemy(
     }
 }
 
-pub fn enemy_damage_player(mut collision_events: EventReader<CollisionEvent>) {
+pub fn check_enemy_player_collision(
+    mut collision_events: EventReader<CollisionEvent>,
+    mut q_enemies: Query<&mut DamagesPlayer, With<Enemy>>,
+) {
     fn is_player(layers: CollisionLayers) -> bool {
         layers.contains_group(GamePhysicsLayer::Player)
             && !layers.contains_group(GamePhysicsLayer::Enemy)
@@ -79,17 +83,40 @@ pub fn enemy_damage_player(mut collision_events: EventReader<CollisionEvent>) {
             && !layers.contains_group(GamePhysicsLayer::Player)
     }
 
-    for evt in collision_events.iter().filter(|&e| {
-        let (layers_1, layers_2) = e.collision_layers();
-        (is_enemy(layers_1) && is_player(layers_2)) || (is_enemy(layers_2) && is_player(layers_1))
+    for (evt, e_enemy) in collision_events.iter().filter_map(|event| {
+        let (entity_1, entity_2) = event.rigid_body_entities();
+        let (layers_1, layers_2) = event.collision_layers();
+        if is_enemy(layers_1) && is_player(layers_2) {
+            Some((event, entity_1))
+        } else if is_enemy(layers_2) && is_player(layers_1) {
+            Some((event, entity_2))
+        } else {
+            None
+        }
     }) {
-        match evt {
-            CollisionEvent::Started(d1, d2) => {
-                println!("Collision started between {:?} and {:?}", d1, d2)
+        if let Ok(mut enemy) = q_enemies.get_mut(e_enemy) {
+            match evt {
+                CollisionEvent::Started(_d1, _d2) => {
+                    enemy.is_damaging = true;
+                }
+                CollisionEvent::Stopped(_d1, _d2) => {
+                    enemy.tick.reset();
+                    enemy.is_damaging = false;
+                }
             }
-            CollisionEvent::Stopped(d1, d2) => {
-                println!("Collision stopped between {:?} and {:?}", d1, d2)
-            }
+        }
+    }
+}
+
+pub fn enemy_damage_player(
+    mut q_enemies: Query<&mut DamagesPlayer, With<Enemy>>,
+    mut q_player: Query<&mut Health, With<Player>>,
+    time: Res<Time>,
+) {
+    let mut player = q_player.single_mut();
+    for mut enemy in q_enemies.iter_mut().filter(|e| e.is_damaging) {
+        if enemy.tick.tick(time.delta()).just_finished() {
+            player.current -= enemy.damage;
         }
     }
 }

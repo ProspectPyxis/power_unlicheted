@@ -1,12 +1,17 @@
 use crate::common::{
     angle_between_points, get_cursor_position, vec3_from_magnitude_angle, DespawnTimer,
-    GamePhysicsLayer, GameSprites, MainCamera, Player, Projectile,
+    GamePhysicsLayer, GameSprites, Health, HealthBarUI, MainCamera, Player, Projectile,
+    RegeneratesHealth,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
 
-pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
-    commands
+pub fn spawn_player(
+    mut commands: Commands,
+    sprites: Res<GameSprites>,
+    asset_server: Res<AssetServer>,
+) {
+    let player = commands
         .spawn_bundle(SpriteBundle {
             texture: sprites.lich.clone(),
             transform: Transform {
@@ -24,7 +29,38 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
         .insert(CollisionLayers::new(
             GamePhysicsLayer::Player,
             GamePhysicsLayer::Enemy,
-        ));
+        ))
+        .insert(Health {
+            current: 500.0,
+            maximum: 500.0,
+        })
+        .insert(RegeneratesHealth {
+            regen: 1.0,
+            tick: Timer::from_seconds(0.5, true),
+            is_regenerating: true,
+        })
+        .id();
+
+    let ui_font = asset_server.load("fonts/OpenSans-Regular.ttf");
+    let text_style = TextStyle {
+        font: ui_font,
+        font_size: 20.0,
+        color: Color::GREEN,
+    };
+    let text_alignment = TextAlignment {
+        vertical: VerticalAlign::Center,
+        horizontal: HorizontalAlign::Center,
+    };
+    let health_bar = commands
+        .spawn_bundle(Text2dBundle {
+            text: Text::with_section("1000", text_style, text_alignment),
+            transform: Transform::from_translation(Vec3::new(0.0, -20.0, -1.0)),
+            ..Default::default()
+        })
+        .insert(HealthBarUI)
+        .id();
+
+    commands.entity(player).push_children(&[health_bar]);
 }
 
 pub fn player_move(
@@ -83,5 +119,15 @@ pub fn player_shoot(
                 ))
                 .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
         }
+    }
+}
+
+pub fn update_health_display(
+    mut q_health_bar: Query<(&Parent, &mut Text), With<HealthBarUI>>,
+    q_player: Query<&Health, With<Player>>,
+) {
+    for (parent, mut text) in q_health_bar.iter_mut() {
+        let player = q_player.get(parent.0).unwrap();
+        text.sections[0].value = format!("{}", player.current.floor() as i32);
     }
 }
