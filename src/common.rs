@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_asset_loader::AssetCollection;
+use heron::prelude::*;
 
 #[derive(AssetCollection)]
 pub struct GameSprites {
@@ -55,6 +56,13 @@ impl RectCollider {
     }
 }
 
+#[derive(PhysicsLayer)]
+pub enum GamePhysicsLayer {
+    Player,
+    Projectile,
+    Enemy,
+}
+
 // Functions
 
 /// Moves the transform by a certain speed, at the angle (in radians).
@@ -66,6 +74,11 @@ pub fn move_in_direction(mut transform: Mut<Transform>, speed: f32, angle: f32) 
 /// Get the angle from point v1 to point v2.
 pub fn angle_between_points(v1: Vec2, v2: Vec2) -> f32 {
     (v2.y - v1.y).atan2(v2.x - v1.x)
+}
+
+/// Returns a Vec3 pointing at a specific angle (in radians) with a specific magnitude.
+pub fn vec3_from_magnitude_angle(magnitude: f32, angle: f32) -> Vec3 {
+    Vec3::new(magnitude * angle.cos(), magnitude * angle.sin(), 0.0)
 }
 
 /// Gets the position of the cursor.

@@ -1,8 +1,9 @@
 use crate::common::{
-    angle_between_points, get_cursor_position, AngledMovement, DespawnTimer, GameSprites,
-    MainCamera, Player, Projectile, RectCollider,
+    angle_between_points, get_cursor_position, vec3_from_magnitude_angle, DespawnTimer,
+    GamePhysicsLayer, GameSprites, MainCamera, Player, Projectile,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
+use heron::prelude::*;
 
 pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
     commands
@@ -54,19 +55,24 @@ pub fn player_shoot(
                 .spawn_bundle(SpriteBundle {
                     texture: sprites.fireball.clone(),
                     transform: Transform {
-                        translation: player.translation.clone(),
+                        translation: player.translation,
                         scale: Vec3::new(2.0, 2.0, 0.0),
                         ..Default::default()
                     },
                     ..Default::default()
                 })
                 .insert(Projectile)
-                .insert(AngledMovement {
-                    speed: 4.0,
-                    angle: angle_between_points(player.translation.truncate(), cursor_pos),
-                })
-                .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
-                .insert(RectCollider::square(32.0));
+                .insert(RigidBody::KinematicVelocityBased)
+                .insert(Velocity::from_linear(vec3_from_magnitude_angle(
+                    240.0,
+                    angle_between_points(player.translation.truncate(), cursor_pos),
+                )))
+                .insert(CollisionShape::Sphere { radius: 16.0 })
+                .insert(CollisionLayers::new(
+                    GamePhysicsLayer::Projectile,
+                    GamePhysicsLayer::Enemy,
+                ))
+                .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
         }
     }
 }

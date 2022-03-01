@@ -6,6 +6,7 @@ use crate::{
 };
 use bevy::{core::FixedTimestep, prelude::*};
 use bevy_asset_loader::AssetLoader;
+use heron::prelude::*;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 enum GameState {
@@ -31,6 +32,7 @@ impl Plugin for GameSetup {
                 ..Default::default()
             })
             .add_plugins(DefaultPlugins)
+            .add_plugin(PhysicsPlugin::default())
             .add_system_set(
                 SystemSet::on_enter(GameState::Start)
                     .with_system(setup_camera)
