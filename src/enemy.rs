@@ -1,51 +1,50 @@
-use crate::common::{
-    angle_between_points, vec3_from_magnitude_angle, DamagesPlayer, Enemy, EnemyAI,
-    GamePhysicsLayer, GameSprites, Health, Player,
-};
+use crate::common::{DamagesPlayer, Enemy, EnemyAI, GamePhysicsLayer, GameSprites, Health, Player};
 use bevy::prelude::*;
 use heron::prelude::*;
+use itertools::Itertools;
 use std::f32::consts::{FRAC_PI_2, PI};
 
-pub fn spawn_enemy(
-    mut commands: Commands,
-    sprites: Res<GameSprites>,
-    q_player: Query<&Transform, With<Player>>,
-) {
-    let player = q_player.single();
-    let pos = Vec3::new(alea::f32_in_range(-648.0, 648.0), -490.0, 0.0);
-    commands
-        .spawn_bundle(SpriteBundle {
-            texture: sprites.soldier.clone(),
-            transform: Transform {
-                translation: pos,
-                scale: Vec3::new(1.5, 1.5, 0.0),
+pub fn spawn_enemy_wave(mut commands: Commands, sprites: Res<GameSprites>) {
+    let wave_width = alea::u32_in_range(4, 7);
+    let wave_height = alea::u32_in_range(3, 5);
+    let start_x = alea::f32_in_range(-600.0, 600.0);
+
+    for (x, y) in (0..wave_width).cartesian_product(0..wave_height) {
+        let spawn_x = start_x + ((x as f32 - x as f32 / 2.0) * 30.0);
+        let spawn_y = -550.0 + ((y as f32 - y as f32 / 2.0) * 50.0);
+        let pos = Vec3::new(spawn_x, spawn_y, 1.0);
+        commands
+            .spawn_bundle(SpriteBundle {
+                texture: sprites.soldier.clone(),
+                transform: Transform {
+                    translation: pos,
+                    scale: Vec3::new(1.5, 1.5, 0.0),
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Enemy {
-            ai: EnemyAI::ChasesPlayer { speed: 120.0 },
-        })
-        .insert(RigidBody::Dynamic)
-        .insert(CollisionShape::Cuboid {
-            half_extends: Vec3::new(11.25, 15.0, 0.0),
-            border_radius: None,
-        })
-        .insert(Velocity::from_linear(vec3_from_magnitude_angle(
-            120.0,
-            angle_between_points(pos.truncate(), player.translation.truncate()),
-        )))
-        .insert(RotationConstraints::lock())
-        .insert(
-            CollisionLayers::none()
-                .with_group(GamePhysicsLayer::Enemy)
-                .with_masks(&[GamePhysicsLayer::Projectile, GamePhysicsLayer::Player]),
-        )
-        .insert(DamagesPlayer {
-            damage: 1.0,
-            tick: Timer::from_seconds(1.0, true),
-            is_damaging: false,
-        });
+            })
+            .insert(Enemy {
+                ai: EnemyAI::ChasesPlayer { speed: 120.0 },
+            })
+            .insert(RigidBody::Dynamic)
+            .insert(CollisionShape::Sphere { radius: 10.0 })
+            .insert(Velocity::from_linear(Vec3::ZERO))
+            .insert(RotationConstraints::lock())
+            .insert(
+                CollisionLayers::none()
+                    .with_group(GamePhysicsLayer::Enemy)
+                    .with_masks(&[
+                        GamePhysicsLayer::Projectile,
+                        GamePhysicsLayer::Player,
+                        GamePhysicsLayer::Enemy,
+                    ]),
+            )
+            .insert(DamagesPlayer {
+                damage: 1.0,
+                tick: Timer::from_seconds(1.0, true),
+                is_damaging: false,
+            });
+    }
 }
 
 pub fn update_enemy(
@@ -57,10 +56,12 @@ pub fn update_enemy(
         let current_pos = transform.translation;
         match enemy.ai {
             EnemyAI::ChasesPlayer { speed } => {
-                let angle =
-                    angle_between_points(current_pos.truncate(), player.translation.truncate());
-                velocity.linear = vec3_from_magnitude_angle(speed, angle);
-                if ((angle + FRAC_PI_2) / PI).rem_euclid(2.0).floor() == 1.0 {
+                velocity.linear = (player.translation - current_pos).normalize() * speed;
+                if ((velocity.linear.angle_between(Vec3::X) + FRAC_PI_2) / PI)
+                    .rem_euclid(2.0)
+                    .floor()
+                    == 1.0
+                {
                     sprite.flip_x = true;
                 } else {
                     sprite.flip_x = false;
@@ -100,7 +101,6 @@ pub fn check_enemy_player_collision(
                     enemy.is_damaging = true;
                 }
                 CollisionEvent::Stopped(_d1, _d2) => {
-                    enemy.tick.reset();
                     enemy.is_damaging = false;
                 }
             }

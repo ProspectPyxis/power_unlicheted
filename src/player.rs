@@ -1,10 +1,10 @@
 use crate::common::{
-    angle_between_points, get_cursor_position, vec3_from_magnitude_angle, DespawnTimer,
-    GamePhysicsLayer, GameSprites, Health, HealthBarUI, MainCamera, Player, Projectile,
-    RegeneratesHealth,
+    get_cursor_position, DespawnTimer, GamePhysicsLayer, GameSprites, Health, HealthBarUI,
+    MainCamera, Player, Projectile, RegeneratesHealth, Vec3Utils,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
+use std::f32::consts::PI;
 
 pub fn spawn_player(
     mut commands: Commands,
@@ -22,10 +22,7 @@ pub fn spawn_player(
         })
         .insert(Player)
         .insert(RigidBody::KinematicPositionBased)
-        .insert(CollisionShape::Cuboid {
-            half_extends: Vec3::new(32.0, 40.0, 0.0),
-            border_radius: None,
-        })
+        .insert(CollisionShape::Sphere { radius: 32.0 })
         .insert(CollisionLayers::new(
             GamePhysicsLayer::Player,
             GamePhysicsLayer::Enemy,
@@ -36,7 +33,7 @@ pub fn spawn_player(
         })
         .insert(RegeneratesHealth {
             regen: 1.0,
-            tick: Timer::from_seconds(0.5, true),
+            tick: Timer::from_seconds(2.0, true),
             is_regenerating: true,
         })
         .id();
@@ -96,28 +93,33 @@ pub fn player_shoot(
     if mouse_input.just_pressed(MouseButton::Left) {
         if let Some(cursor_pos) = get_cursor_position(wnds, q_camera) {
             let player = q_player.single();
-            commands
-                .spawn_bundle(SpriteBundle {
-                    texture: sprites.fireball.clone(),
-                    transform: Transform {
-                        translation: player.translation,
-                        scale: Vec3::new(2.0, 2.0, 0.0),
+            for i in -1..=1 {
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        texture: sprites.fireball.clone(),
+                        transform: Transform {
+                            translation: player.translation,
+                            scale: Vec3::new(2.0, 2.0, 0.0),
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(Projectile)
-                .insert(RigidBody::KinematicVelocityBased)
-                .insert(Velocity::from_linear(vec3_from_magnitude_angle(
-                    240.0,
-                    angle_between_points(player.translation.truncate(), cursor_pos),
-                )))
-                .insert(CollisionShape::Sphere { radius: 16.0 })
-                .insert(CollisionLayers::new(
-                    GamePhysicsLayer::Projectile,
-                    GamePhysicsLayer::Enemy,
-                ))
-                .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
+                    })
+                    .insert(Projectile)
+                    .insert(RigidBody::KinematicVelocityBased)
+                    .insert(Velocity::from_linear(
+                        (cursor_pos - player.translation.truncate())
+                            .extend(0.0)
+                            .normalize()
+                            .rotate_2d(PI * i as f32 / 16.0)
+                            * 240.0,
+                    ))
+                    .insert(CollisionShape::Sphere { radius: 16.0 })
+                    .insert(CollisionLayers::new(
+                        GamePhysicsLayer::Projectile,
+                        GamePhysicsLayer::Enemy,
+                    ))
+                    .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
+            }
         }
     }
 }

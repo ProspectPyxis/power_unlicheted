@@ -67,14 +67,19 @@ pub enum GamePhysicsLayer {
 
 // Functions
 
-/// Get the angle from point v1 to point v2.
-pub fn angle_between_points(v1: Vec2, v2: Vec2) -> f32 {
-    (v2.y - v1.y).atan2(v2.x - v1.x)
+pub trait Vec3Utils {
+    fn rotate_2d(&self, angle: f32) -> Self;
 }
 
-/// Returns a Vec3 pointing at a specific angle (in radians) with a specific magnitude.
-pub fn vec3_from_magnitude_angle(magnitude: f32, angle: f32) -> Vec3 {
-    Vec3::new(magnitude * angle.cos(), magnitude * angle.sin(), 0.0)
+impl Vec3Utils for Vec3 {
+    /// Rotates a vector by a given amount of radians.
+    fn rotate_2d(&self, angle: f32) -> Self {
+        Vec3::new(
+            self.x * angle.cos() - self.y * angle.sin(),
+            self.x * angle.sin() + self.y * angle.cos(),
+            self.z,
+        )
+    }
 }
 
 /// Gets the position of the cursor.

@@ -1,6 +1,6 @@
 use crate::{
     common::{check_despawn, regen_health, GameSprites, MainCamera},
-    enemy::{check_enemy_player_collision, enemy_damage_player, spawn_enemy, update_enemy},
+    enemy::{check_enemy_player_collision, enemy_damage_player, spawn_enemy_wave, update_enemy},
     player::{player_move, player_shoot, spawn_player, update_health_display},
     projectile::check_projectile_collision,
 };
@@ -26,7 +26,7 @@ impl Plugin for GameSetup {
         app.add_state(GameState::AssetLoading)
             .insert_resource(Msaa { samples: 1 })
             .insert_resource(WindowDescriptor {
-                title: "Lich thing".to_string(),
+                title: "You Are a Lich".to_string(),
                 width: 1280.0,
                 height: 960.0,
                 ..Default::default()
@@ -52,8 +52,8 @@ impl Plugin for GameSetup {
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Start)
-                    .with_run_criteria(FixedTimestep::step(2.0))
-                    .with_system(spawn_enemy),
+                    .with_run_criteria(FixedTimestep::step(5.0))
+                    .with_system(spawn_enemy_wave),
             );
     }
 }
