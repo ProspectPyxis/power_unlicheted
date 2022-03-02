@@ -1,6 +1,6 @@
 use crate::common::{
     DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GamePhysicsLayer, GameSprites,
-    Health, Player, Vec3Utils, WaveCore, WaveManager,
+    Health, Player, Vec3Utils, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
 use bevy::prelude::*;
 use heron::prelude::*;
@@ -28,7 +28,7 @@ pub fn spawn_enemy_wave(
 pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites>) {
     let wave_width = alea::u32_in_range(4, 7);
     let wave_height = alea::u32_in_range(3, 5);
-    let start_x = alea::f32_in_range(-640.0, 640.0);
+    let start_x = alea::f32_in_range(-SCREEN_WIDTH / 2.0, SCREEN_WIDTH / 2.0);
 
     let wave_core = commands
         .spawn()
@@ -39,7 +39,7 @@ pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites
 
     for (x, y) in (0..wave_width).cartesian_product(0..wave_height) {
         let spawn_x = start_x + ((x as f32 - x as f32 / 2.0) * 40.0);
-        let spawn_y = -540.0 - ((y as f32 / 2.0) * 60.0);
+        let spawn_y = (-SCREEN_HEIGHT * 0.6) - ((y as f32 / 2.0) * 60.0);
         let pos = Vec3::new(spawn_x, spawn_y, 0.0);
         commands
             .spawn_bundle(SpriteBundle {
@@ -84,8 +84,8 @@ pub fn spawn_enemy_line_wave(commands: &mut Commands, sprites: Res<GameSprites>)
         .id();
 
     for i in 0..wave_size {
-        let spawn_x = (i as f32 * (1280.0 / wave_size as f32)) - 640.0;
-        let pos = Vec3::new(spawn_x, -540.0, 0.0);
+        let spawn_x = (i as f32 * (SCREEN_WIDTH / wave_size as f32)) - SCREEN_WIDTH / 2.0;
+        let pos = Vec3::new(spawn_x, -SCREEN_HEIGHT * 0.6, 0.0);
         commands
             .spawn_bundle(SpriteBundle {
                 texture: sprites.soldier.clone(),
@@ -129,8 +129,10 @@ pub fn update_enemy(
             match enemy.ai {
                 EnemyAI::ChasesPlayer { speed } => {
                     if health.current < health.maximum {
-                        let desired_velocity =
-                            (Vec3::Y * (-510.0 - current_pos.y)).normalize() * speed * 3.0;
+                        let desired_velocity = (Vec3::Y * ((-SCREEN_HEIGHT * 0.7) - current_pos.y))
+                            .normalize()
+                            * speed
+                            * 3.0;
                         let seek_force = desired_velocity - velocity.linear;
 
                         let desired_velocity = (current_pos.truncate()
@@ -287,7 +289,8 @@ pub fn despawn_enemies(
             commands.entity(ent).despawn();
             morale.0 -= 0.1;
             true
-        } else if health.current < health.maximum && transform.translation.y <= -500.0 {
+        } else if health.current < health.maximum && transform.translation.y <= -SCREEN_HEIGHT * 0.6
+        {
             commands.entity(ent).despawn();
             morale.0 += 0.25;
             true

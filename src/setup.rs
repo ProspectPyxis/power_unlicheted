@@ -1,7 +1,7 @@
 use crate::{
     common::{
         check_despawn, regen_health, DamagePlayerEvent, EnemyMorale, GameSprites, Label,
-        MainCamera, Ui, WaveManager,
+        MainCamera, Ui, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -35,8 +35,8 @@ impl Plugin for GameSetup {
             .insert_resource(Msaa { samples: 1 })
             .insert_resource(WindowDescriptor {
                 title: "You Are a Lich".to_string(),
-                width: 1280.0,
-                height: 960.0,
+                width: SCREEN_WIDTH,
+                height: SCREEN_HEIGHT,
                 resizable: false,
                 ..Default::default()
             })

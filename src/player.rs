@@ -90,45 +90,46 @@ pub fn player_shoot(
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
         if let Some(cursor_pos) = get_cursor_position(wnds, q_camera) {
-            let player = q_player.single();
-            for i in -1..=1 {
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        texture: sprites.fireball.clone(),
-                        transform: Transform {
-                            translation: player.translation,
-                            scale: Vec3::new(2.0, 2.0, 0.0),
+            if let Some(player) = q_player.iter().next() {
+                for i in -1..=1 {
+                    commands
+                        .spawn_bundle(SpriteBundle {
+                            texture: sprites.fireball.clone(),
+                            transform: Transform {
+                                translation: player.translation,
+                                scale: Vec3::new(2.0, 2.0, 0.0),
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    })
-                    .insert(Projectile)
-                    .insert(RigidBody::KinematicVelocityBased)
-                    .insert(Velocity::from_linear(
-                        (cursor_pos - player.translation.truncate())
-                            .extend(0.0)
-                            .normalize()
-                            .rotate_2d(PI * i as f32 / 16.0)
-                            * 360.0,
-                    ))
-                    .insert(CollisionShape::Sphere { radius: 8.0 })
-                    .insert(CollisionLayers::new(
-                        GamePhysicsLayer::PlayerAttack,
-                        GamePhysicsLayer::Enemy,
-                    ))
-                    .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
-                    .insert(DamagesEnemy { damage: 2.0 })
-                    .with_children(|parent| {
-                        parent
-                            .spawn_bundle(SpriteBundle::default())
-                            .insert(RigidBody::Sensor)
-                            .insert(CollisionShape::Sphere { radius: 16.0 })
-                            .insert(CollisionLayers::new(
-                                GamePhysicsLayer::PlayerAttack,
-                                GamePhysicsLayer::Enemy,
-                            ))
-                            .insert(DamagesEnemy { damage: 1.0 });
-                    });
+                        })
+                        .insert(Projectile)
+                        .insert(RigidBody::KinematicVelocityBased)
+                        .insert(Velocity::from_linear(
+                            (cursor_pos - player.translation.truncate())
+                                .extend(0.0)
+                                .normalize()
+                                .rotate_2d(PI * i as f32 / 16.0)
+                                * 360.0,
+                        ))
+                        .insert(CollisionShape::Sphere { radius: 8.0 })
+                        .insert(CollisionLayers::new(
+                            GamePhysicsLayer::PlayerAttack,
+                            GamePhysicsLayer::Enemy,
+                        ))
+                        .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
+                        .insert(DamagesEnemy { damage: 2.0 })
+                        .with_children(|parent| {
+                            parent
+                                .spawn_bundle(SpriteBundle::default())
+                                .insert(RigidBody::Sensor)
+                                .insert(CollisionShape::Sphere { radius: 16.0 })
+                                .insert(CollisionLayers::new(
+                                    GamePhysicsLayer::PlayerAttack,
+                                    GamePhysicsLayer::Enemy,
+                                ))
+                                .insert(DamagesEnemy { damage: 1.0 });
+                        });
+                }
             }
         }
     }

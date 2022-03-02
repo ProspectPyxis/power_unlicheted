@@ -2,6 +2,9 @@ use bevy::prelude::*;
 use bevy_asset_loader::AssetCollection;
 use heron::prelude::*;
 
+pub const SCREEN_WIDTH: f32 = 960.0;
+pub const SCREEN_HEIGHT: f32 = 720.0;
+
 #[derive(AssetCollection)]
 pub struct GameSprites {
     #[asset(path = "sprites/lich.png")]
