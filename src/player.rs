@@ -109,7 +109,7 @@ pub fn player_shoot(
                             .extend(0.0)
                             .normalize()
                             .rotate_2d(PI * i as f32 / 16.0)
-                            * 240.0,
+                            * 360.0,
                     ))
                     .insert(CollisionShape::Sphere { radius: 8.0 })
                     .insert(CollisionLayers::new(

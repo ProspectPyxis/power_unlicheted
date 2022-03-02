@@ -37,13 +37,14 @@ impl Plugin for GameSetup {
                 title: "You Are a Lich".to_string(),
                 width: 1280.0,
                 height: 960.0,
+                resizable: false,
                 ..Default::default()
             })
             .insert_resource(EnemyMorale(50.0))
             .insert_resource(WaveManager {
                 active_waves: 0,
-                max_waves: 2,
-                wave_timer: Timer::from_seconds(5.0, false),
+                max_waves: 4,
+                wave_timer: Timer::from_seconds(3.0, false),
             })
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())

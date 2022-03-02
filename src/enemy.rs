@@ -14,7 +14,12 @@ pub fn spawn_enemy_wave(
 ) {
     wave_manager.wave_timer.tick(time.delta());
     if wave_manager.wave_timer.finished() && wave_manager.active_waves < wave_manager.max_waves {
-        spawn_enemy_square_wave(&mut commands, sprites);
+        let wave_to_spawn = alea::u32_less_than(4);
+        if (0..2).contains(&wave_to_spawn) {
+            spawn_enemy_line_wave(&mut commands, sprites);
+        } else if (2..4).contains(&wave_to_spawn) {
+            spawn_enemy_square_wave(&mut commands, sprites);
+        }
         wave_manager.active_waves += 1;
         wave_manager.wave_timer.reset();
     }
@@ -23,7 +28,7 @@ pub fn spawn_enemy_wave(
 pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites>) {
     let wave_width = alea::u32_in_range(4, 7);
     let wave_height = alea::u32_in_range(3, 5);
-    let start_x = alea::f32_in_range(-600.0, 600.0);
+    let start_x = alea::f32_in_range(-640.0, 640.0);
 
     let wave_core = commands
         .spawn()
@@ -36,6 +41,51 @@ pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites
         let spawn_x = start_x + ((x as f32 - x as f32 / 2.0) * 40.0);
         let spawn_y = -540.0 - ((y as f32 / 2.0) * 60.0);
         let pos = Vec3::new(spawn_x, spawn_y, 0.0);
+        commands
+            .spawn_bundle(SpriteBundle {
+                texture: sprites.soldier.clone(),
+                transform: Transform {
+                    translation: pos,
+                    scale: Vec3::new(1.5, 1.5, 0.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .insert(Enemy {
+                ai: EnemyAI::ChasesPlayer { speed: 120.0 },
+                wave_core: Some(wave_core),
+            })
+            .insert(RigidBody::KinematicVelocityBased)
+            .insert(CollisionShape::Sphere { radius: 10.0 })
+            .insert(Velocity::from_linear(Vec3::ZERO))
+            .insert(RotationConstraints::lock())
+            .insert(
+                CollisionLayers::none()
+                    .with_group(GamePhysicsLayer::Enemy)
+                    .with_masks(&[GamePhysicsLayer::PlayerAttack, GamePhysicsLayer::Player]),
+            )
+            .insert(DamagesPlayer {
+                damage: 1.0,
+                tick: Timer::from_seconds(1.0, true),
+                is_damaging: false,
+            })
+            .insert(Health::full(3.0));
+    }
+}
+
+pub fn spawn_enemy_line_wave(commands: &mut Commands, sprites: Res<GameSprites>) {
+    let wave_size = alea::u32_in_range(20, 25);
+
+    let wave_core = commands
+        .spawn()
+        .insert(WaveCore {
+            remaining: wave_size,
+        })
+        .id();
+
+    for i in 0..wave_size {
+        let spawn_x = (i as f32 * (1280.0 / wave_size as f32)) - 640.0;
+        let pos = Vec3::new(spawn_x, -540.0, 0.0);
         commands
             .spawn_bundle(SpriteBundle {
                 texture: sprites.soldier.clone(),
