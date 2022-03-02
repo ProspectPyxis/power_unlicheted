@@ -1,15 +1,36 @@
 use crate::common::{
     DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GamePhysicsLayer, GameSprites,
-    Health, Player, Vec3Utils,
+    Health, Player, Vec3Utils, WaveCore, WaveManager,
 };
 use bevy::prelude::*;
 use heron::prelude::*;
 use itertools::Itertools;
 
-pub fn spawn_enemy_wave(mut commands: Commands, sprites: Res<GameSprites>) {
+pub fn spawn_enemy_wave(
+    mut commands: Commands,
+    mut wave_manager: ResMut<WaveManager>,
+    sprites: Res<GameSprites>,
+    time: Res<Time>,
+) {
+    wave_manager.wave_timer.tick(time.delta());
+    if wave_manager.wave_timer.finished() && wave_manager.active_waves < wave_manager.max_waves {
+        spawn_enemy_square_wave(&mut commands, sprites);
+        wave_manager.active_waves += 1;
+        wave_manager.wave_timer.reset();
+    }
+}
+
+pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites>) {
     let wave_width = alea::u32_in_range(4, 7);
     let wave_height = alea::u32_in_range(3, 5);
     let start_x = alea::f32_in_range(-600.0, 600.0);
+
+    let wave_core = commands
+        .spawn()
+        .insert(WaveCore {
+            remaining: wave_width * wave_height,
+        })
+        .id();
 
     for (x, y) in (0..wave_width).cartesian_product(0..wave_height) {
         let spawn_x = start_x + ((x as f32 - x as f32 / 2.0) * 40.0);
@@ -27,6 +48,7 @@ pub fn spawn_enemy_wave(mut commands: Commands, sprites: Res<GameSprites>) {
             })
             .insert(Enemy {
                 ai: EnemyAI::ChasesPlayer { speed: 120.0 },
+                wave_core: Some(wave_core),
             })
             .insert(RigidBody::KinematicVelocityBased)
             .insert(CollisionShape::Sphere { radius: 10.0 })
@@ -35,11 +57,7 @@ pub fn spawn_enemy_wave(mut commands: Commands, sprites: Res<GameSprites>) {
             .insert(
                 CollisionLayers::none()
                     .with_group(GamePhysicsLayer::Enemy)
-                    .with_masks(&[
-                        GamePhysicsLayer::PlayerAttack,
-                        GamePhysicsLayer::Player,
-                        // GamePhysicsLayer::Enemy,
-                    ]),
+                    .with_masks(&[GamePhysicsLayer::PlayerAttack, GamePhysicsLayer::Player]),
             )
             .insert(DamagesPlayer {
                 damage: 1.0,
@@ -62,7 +80,7 @@ pub fn update_enemy(
                 EnemyAI::ChasesPlayer { speed } => {
                     if health.current < health.maximum {
                         let desired_velocity =
-                            (Vec3::Y * (-650.0 - current_pos.y)).normalize() * speed * 3.0;
+                            (Vec3::Y * (-510.0 - current_pos.y)).normalize() * speed * 3.0;
                         let seek_force = desired_velocity - velocity.linear;
 
                         let desired_velocity = (current_pos.truncate()
@@ -134,7 +152,13 @@ pub fn update_enemy_render(
         for (enemy, transform, health, mut sprite) in q_enemies.iter_mut() {
             match enemy.ai {
                 EnemyAI::ChasesPlayer { speed: _ } => {
-                    if transform.translation.x > player.translation.x {
+                    if health.current < health.maximum {
+                        if transform.translation.x > player.translation.x {
+                            sprite.flip_x = false;
+                        } else {
+                            sprite.flip_x = true;
+                        }
+                    } else if transform.translation.x > player.translation.x {
                         sprite.flip_x = true;
                     } else {
                         sprite.flip_x = false;
@@ -203,16 +227,35 @@ pub fn enemy_damage_player(
 
 pub fn despawn_enemies(
     mut commands: Commands,
-    q_enemies: Query<(Entity, &Health, &Transform), With<Enemy>>,
+    q_enemies: Query<(Entity, &Health, &Transform, &Enemy)>,
+    mut q_wave_cores: Query<(Entity, &mut WaveCore)>,
     mut morale: ResMut<EnemyMorale>,
+    mut wave_manager: ResMut<WaveManager>,
 ) {
-    for (ent, health, transform) in q_enemies.iter() {
-        if health.current <= 0.0 {
+    for (ent, health, transform, enemy) in q_enemies.iter() {
+        let despawned = if health.current <= 0.0 {
             commands.entity(ent).despawn();
             morale.0 -= 0.1;
-        } else if health.current < health.maximum && transform.translation.y <= -640.0 {
+            true
+        } else if health.current < health.maximum && transform.translation.y <= -500.0 {
             commands.entity(ent).despawn();
             morale.0 += 0.25;
+            true
+        } else {
+            false
+        };
+        if despawned {
+            if let Some(e_core) = enemy.wave_core {
+                if let Ok((_, mut wave_core)) = q_wave_cores.get_mut(e_core) {
+                    wave_core.remaining -= 1;
+                }
+            }
+        }
+    }
+    for (ent, wave_core) in q_wave_cores.iter_mut() {
+        if wave_core.remaining == 0 {
+            commands.entity(ent).despawn();
+            wave_manager.active_waves -= 1;
         }
     }
 }

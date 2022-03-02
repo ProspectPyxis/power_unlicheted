@@ -1,7 +1,7 @@
 use crate::{
     common::{
         check_despawn, regen_health, DamagePlayerEvent, EnemyMorale, GameSprites, Label,
-        MainCamera, Ui,
+        MainCamera, Ui, WaveManager,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -12,7 +12,7 @@ use crate::{
     },
     projectile::check_projectile_collision,
 };
-use bevy::{core::FixedTimestep, prelude::*};
+use bevy::prelude::*;
 use bevy_asset_loader::AssetLoader;
 use heron::prelude::*;
 
@@ -40,6 +40,11 @@ impl Plugin for GameSetup {
                 ..Default::default()
             })
             .insert_resource(EnemyMorale(50.0))
+            .insert_resource(WaveManager {
+                active_waves: 0,
+                max_waves: 2,
+                wave_timer: Timer::from_seconds(5.0, false),
+            })
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
             .add_event::<DamagePlayerEvent>()
@@ -53,6 +58,7 @@ impl Plugin for GameSetup {
                 SystemSet::on_update(GameState::Start)
                     .with_system(player_move)
                     .with_system(player_shoot)
+                    .with_system(spawn_enemy_wave)
                     .with_system(update_enemy)
                     .label(Label::Movement),
             )
@@ -85,11 +91,6 @@ impl Plugin for GameSetup {
                     .with_system(update_ui)
                     .label(Label::UpdateSprites)
                     .after(Label::Despawn),
-            )
-            .add_system_set(
-                SystemSet::on_update(GameState::Start)
-                    .with_run_criteria(FixedTimestep::step(5.0))
-                    .with_system(spawn_enemy_wave),
             );
     }
 }

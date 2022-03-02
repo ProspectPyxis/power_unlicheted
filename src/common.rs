@@ -32,6 +32,12 @@ pub enum EnemyAI {
 #[derive(Component)]
 pub struct Enemy {
     pub ai: EnemyAI,
+    pub wave_core: Option<Entity>,
+}
+
+#[derive(Component)]
+pub struct WaveCore {
+    pub remaining: u32,
 }
 
 #[derive(Component)]
@@ -78,8 +84,17 @@ pub struct DamagesEnemy {
 #[derive(Component)]
 pub struct DespawnTimer(pub Timer);
 
+// Resources
+
 #[derive(Component)]
 pub struct EnemyMorale(pub f32);
+
+#[derive(Component)]
+pub struct WaveManager {
+    pub active_waves: u32,
+    pub max_waves: u32,
+    pub wave_timer: Timer,
+}
 
 #[derive(PhysicsLayer)]
 pub enum GamePhysicsLayer {
