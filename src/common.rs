@@ -12,6 +12,8 @@ pub struct GameSprites {
     pub soldier: Handle<Image>,
 }
 
+pub struct DamagePlayerEvent(pub f32);
+
 // Components
 
 #[derive(Component)]
@@ -89,6 +91,7 @@ pub enum GamePhysicsLayer {
 #[derive(SystemLabel, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Label {
     Movement,
+    CollisionCheck,
     HealthUpdate,
     Despawn,
     UpdateSprites,

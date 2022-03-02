@@ -1,6 +1,7 @@
 use crate::common::{
-    get_cursor_position, DamagesEnemy, DespawnTimer, GamePhysicsLayer, GameSprites, Health,
-    MainCamera, Player, Projectile, RegeneratesHealth, Ui, Vec3Utils,
+    get_cursor_position, DamagePlayerEvent, DamagesEnemy, DespawnTimer, EnemyMorale,
+    GamePhysicsLayer, GameSprites, Health, MainCamera, Player, Projectile, RegeneratesHealth, Ui,
+    Vec3Utils,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
@@ -129,6 +130,19 @@ pub fn player_shoot(
                             .insert(DamagesEnemy { damage: 1.0 });
                     });
             }
+        }
+    }
+}
+
+pub fn register_player_damage(
+    mut q_player: Query<&mut Health, With<Player>>,
+    mut damages: EventReader<DamagePlayerEvent>,
+    mut morale: ResMut<EnemyMorale>,
+) {
+    if let Some(mut player) = q_player.iter_mut().next() {
+        for damage in damages.iter() {
+            player.current -= damage.0;
+            morale.0 += damage.0 / 10.0;
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::common::{
-    DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GamePhysicsLayer, GameSprites, Health, Player,
-    Vec3Utils,
+    DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GamePhysicsLayer, GameSprites,
+    Health, Player, Vec3Utils,
 };
 use bevy::prelude::*;
 use heron::prelude::*;
@@ -191,13 +191,12 @@ pub fn check_enemy_player_collision(
 
 pub fn enemy_damage_player(
     mut q_enemies: Query<&mut DamagesPlayer, With<Enemy>>,
-    mut q_player: Query<&mut Health, With<Player>>,
     time: Res<Time>,
+    mut damage_writer: EventWriter<DamagePlayerEvent>,
 ) {
-    let mut player = q_player.single_mut();
     for mut enemy in q_enemies.iter_mut().filter(|e| e.is_damaging) {
         if enemy.tick.tick(time.delta()).just_finished() {
-            player.current -= enemy.damage;
+            damage_writer.send(DamagePlayerEvent(enemy.damage));
         }
     }
 }

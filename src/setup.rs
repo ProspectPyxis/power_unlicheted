@@ -1,10 +1,15 @@
 use crate::{
-    common::{check_despawn, regen_health, EnemyMorale, GameSprites, Label, MainCamera, Ui},
+    common::{
+        check_despawn, regen_health, DamagePlayerEvent, EnemyMorale, GameSprites, Label,
+        MainCamera, Ui,
+    },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
         update_enemy, update_enemy_render,
     },
-    player::{player_move, player_shoot, spawn_player, update_health_display},
+    player::{
+        player_move, player_shoot, register_player_damage, spawn_player, update_health_display,
+    },
     projectile::check_projectile_collision,
 };
 use bevy::{core::FixedTimestep, prelude::*};
@@ -37,6 +42,7 @@ impl Plugin for GameSetup {
             .insert_resource(EnemyMorale(50.0))
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
+            .add_event::<DamagePlayerEvent>()
             .add_system_set(
                 SystemSet::on_enter(GameState::Start)
                     .with_system(setup_camera)
@@ -52,12 +58,18 @@ impl Plugin for GameSetup {
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Start)
-                    .with_system(enemy_damage_player)
-                    .with_system(check_projectile_collision)
                     .with_system(check_enemy_player_collision)
+                    .with_system(check_projectile_collision)
+                    .label(Label::CollisionCheck)
+                    .after(Label::Movement),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::Start)
+                    .with_system(enemy_damage_player)
+                    .with_system(register_player_damage)
                     .with_system(regen_health)
                     .label(Label::HealthUpdate)
-                    .after(Label::Movement),
+                    .after(Label::CollisionCheck),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Start)
