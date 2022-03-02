@@ -1,12 +1,13 @@
 use crate::{
     common::{
-        check_despawn, regen_health, DamagePlayerEvent, EnemyMorale, GameSprites, Label,
-        MainCamera, Ui, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        check_despawn, regen_health, DamagePlayerEvent, EnemyMorale, GameFonts, GameSprites,
+        GameState, Label, MainCamera, Ui, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
         update_enemy, update_enemy_render,
     },
+    menu::{button_shift_narration, despawn_menu, spawn_menu},
     player::{
         player_move, player_shoot, register_player_damage, spawn_player, update_health_display,
     },
@@ -16,30 +17,26 @@ use bevy::prelude::*;
 use bevy_asset_loader::AssetLoader;
 use heron::prelude::*;
 
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
-enum GameState {
-    AssetLoading,
-    Start,
-}
-
 pub struct GameSetup;
 
 impl Plugin for GameSetup {
     fn build(&self, app: &mut App) {
         AssetLoader::new(GameState::AssetLoading)
-            .continue_to_state(GameState::Start)
+            .continue_to_state(GameState::MainMenu)
             .with_collection::<GameSprites>()
+            .with_collection::<GameFonts>()
             .build(app);
 
         app.add_state(GameState::AssetLoading)
             .insert_resource(Msaa { samples: 1 })
             .insert_resource(WindowDescriptor {
-                title: "You Are a Lich".to_string(),
+                title: "Power Unlicheted".to_string(),
                 width: SCREEN_WIDTH,
                 height: SCREEN_HEIGHT,
                 resizable: false,
                 ..Default::default()
             })
+            .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
             .insert_resource(EnemyMorale(50.0))
             .insert_resource(WaveManager {
                 active_waves: 0,
@@ -50,13 +47,21 @@ impl Plugin for GameSetup {
             .add_plugin(PhysicsPlugin::default())
             .add_event::<DamagePlayerEvent>()
             .add_system_set(
-                SystemSet::on_enter(GameState::Start)
+                SystemSet::on_enter(GameState::MainMenu)
                     .with_system(setup_camera)
+                    .with_system(spawn_menu),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::MainMenu).with_system(button_shift_narration),
+            )
+            .add_system_set(SystemSet::on_exit(GameState::MainMenu).with_system(despawn_menu))
+            .add_system_set(
+                SystemSet::on_enter(GameState::ActiveGame)
                     .with_system(spawn_player)
                     .with_system(setup_ui),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Start)
+                SystemSet::on_update(GameState::ActiveGame)
                     .with_system(player_move)
                     .with_system(player_shoot)
                     .with_system(spawn_enemy_wave)
@@ -64,14 +69,14 @@ impl Plugin for GameSetup {
                     .label(Label::Movement),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Start)
+                SystemSet::on_update(GameState::ActiveGame)
                     .with_system(check_enemy_player_collision)
                     .with_system(check_projectile_collision)
                     .label(Label::CollisionCheck)
                     .after(Label::Movement),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Start)
+                SystemSet::on_update(GameState::ActiveGame)
                     .with_system(enemy_damage_player)
                     .with_system(register_player_damage)
                     .with_system(regen_health)
@@ -79,14 +84,14 @@ impl Plugin for GameSetup {
                     .after(Label::CollisionCheck),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Start)
+                SystemSet::on_update(GameState::ActiveGame)
                     .with_system(check_despawn)
                     .with_system(despawn_enemies)
                     .label(Label::Despawn)
                     .after(Label::HealthUpdate),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Start)
+                SystemSet::on_update(GameState::ActiveGame)
                     .with_system(update_health_display)
                     .with_system(update_enemy_render)
                     .with_system(update_ui)

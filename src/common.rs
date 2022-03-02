@@ -5,6 +5,13 @@ use heron::prelude::*;
 pub const SCREEN_WIDTH: f32 = 960.0;
 pub const SCREEN_HEIGHT: f32 = 720.0;
 
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+pub enum GameState {
+    AssetLoading,
+    MainMenu,
+    ActiveGame,
+}
+
 #[derive(AssetCollection)]
 pub struct GameSprites {
     #[asset(path = "sprites/lich.png")]
@@ -13,6 +20,12 @@ pub struct GameSprites {
     pub fireball: Handle<Image>,
     #[asset(path = "sprites/soldier.png")]
     pub soldier: Handle<Image>,
+}
+
+#[derive(AssetCollection)]
+pub struct GameFonts {
+    #[asset(path = "fonts/m5x7.ttf")]
+    pub main: Handle<Font>,
 }
 
 pub struct DamagePlayerEvent(pub f32);
@@ -45,10 +58,14 @@ pub struct WaveCore {
 
 #[derive(Component)]
 pub enum Ui {
+    Core,
     HealthBarMain,
     MoraleDisplay,
-    AbilitySelect,
+    NarrationText,
 }
+
+#[derive(Component)]
+pub struct OpeningNarration(pub usize);
 
 #[derive(Component)]
 pub struct Health {
