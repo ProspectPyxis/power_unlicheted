@@ -3180,17 +3180,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 
 [[package]]
-name = "untitled_lich_game"
-version = "0.1.0"
-dependencies = [
- "alea",
- "bevy",
- "bevy_asset_loader",
- "heron",
- "itertools",
-]
-
-[[package]]
 name = "uuid"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3495,3 +3484,14 @@ name = "xi-unicode"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a67300977d3dc3f8034dae89778f502b6ba20b269527b3223ba59c0cf393bb8a"
+
+[[package]]
+name = "you_are_a_lich"
+version = "0.1.0"
+dependencies = [
+ "alea",
+ "bevy",
+ "bevy_asset_loader",
+ "heron",
+ "itertools",
+]

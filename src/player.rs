@@ -1,6 +1,6 @@
 use crate::common::{
-    get_cursor_position, DespawnTimer, GamePhysicsLayer, GameSprites, Health, MainCamera, Player,
-    Projectile, RegeneratesHealth, Ui, Vec3Utils,
+    get_cursor_position, DamagesEnemy, DespawnTimer, GamePhysicsLayer, GameSprites, Health,
+    MainCamera, Player, Projectile, RegeneratesHealth, Ui, Vec3Utils,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
@@ -24,10 +24,7 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
             GamePhysicsLayer::Player,
             GamePhysicsLayer::Enemy,
         ))
-        .insert(Health {
-            current: 500.0,
-            maximum: 500.0,
-        })
+        .insert(Health::full(500.0))
         .insert(RegeneratesHealth {
             regen: 1.0,
             tick: Timer::from_seconds(2.0, true),
@@ -113,12 +110,24 @@ pub fn player_shoot(
                             .rotate_2d(PI * i as f32 / 16.0)
                             * 240.0,
                     ))
-                    .insert(CollisionShape::Sphere { radius: 16.0 })
+                    .insert(CollisionShape::Sphere { radius: 8.0 })
                     .insert(CollisionLayers::new(
                         GamePhysicsLayer::PlayerAttack,
                         GamePhysicsLayer::Enemy,
                     ))
-                    .insert(DespawnTimer(Timer::from_seconds(1.5, false)));
+                    .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
+                    .insert(DamagesEnemy { damage: 2.0 })
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(SpriteBundle::default())
+                            .insert(RigidBody::Sensor)
+                            .insert(CollisionShape::Sphere { radius: 16.0 })
+                            .insert(CollisionLayers::new(
+                                GamePhysicsLayer::PlayerAttack,
+                                GamePhysicsLayer::Enemy,
+                            ))
+                            .insert(DamagesEnemy { damage: 1.0 });
+                    });
             }
         }
     }

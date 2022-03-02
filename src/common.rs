@@ -35,6 +35,7 @@ pub struct Enemy {
 #[derive(Component)]
 pub enum Ui {
     HealthBarMain,
+    MoraleDisplay,
     AbilitySelect,
 }
 
@@ -42,6 +43,15 @@ pub enum Ui {
 pub struct Health {
     pub current: f32,
     pub maximum: f32,
+}
+
+impl Health {
+    pub fn full(hp: f32) -> Self {
+        Self {
+            current: hp,
+            maximum: hp,
+        }
+    }
 }
 
 #[derive(Component)]
@@ -66,11 +76,22 @@ pub struct DamagesEnemy {
 #[derive(Component)]
 pub struct DespawnTimer(pub Timer);
 
+#[derive(Component)]
+pub struct EnemyMorale(pub f32);
+
 #[derive(PhysicsLayer)]
 pub enum GamePhysicsLayer {
     Player,
     PlayerAttack,
     Enemy,
+}
+
+#[derive(SystemLabel, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum Label {
+    Movement,
+    HealthUpdate,
+    Despawn,
+    UpdateSprites,
 }
 
 // Functions
@@ -134,7 +155,7 @@ pub fn check_despawn(
 ) {
     for (ent, mut timer) in q_despawn.iter_mut() {
         if timer.0.tick(time.delta()).just_finished() {
-            commands.entity(ent).despawn();
+            commands.entity(ent).despawn_recursive();
         }
     }
 }

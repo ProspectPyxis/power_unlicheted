@@ -1,6 +1,9 @@
 use crate::{
-    common::{check_despawn, regen_health, GameSprites, MainCamera},
-    enemy::{check_enemy_player_collision, enemy_damage_player, spawn_enemy_wave, update_enemy},
+    common::{check_despawn, regen_health, EnemyMorale, GameSprites, Label, MainCamera, Ui},
+    enemy::{
+        check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
+        update_enemy, update_enemy_render,
+    },
     player::{player_move, player_shoot, spawn_player, update_health_display},
     projectile::check_projectile_collision,
 };
@@ -31,24 +34,45 @@ impl Plugin for GameSetup {
                 height: 960.0,
                 ..Default::default()
             })
+            .insert_resource(EnemyMorale(50.0))
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
             .add_system_set(
                 SystemSet::on_enter(GameState::Start)
                     .with_system(setup_camera)
-                    .with_system(spawn_player),
+                    .with_system(spawn_player)
+                    .with_system(setup_ui),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Start)
-                    .with_system(check_despawn)
                     .with_system(player_move)
                     .with_system(player_shoot)
                     .with_system(update_enemy)
+                    .label(Label::Movement),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::Start)
                     .with_system(enemy_damage_player)
                     .with_system(check_projectile_collision)
                     .with_system(check_enemy_player_collision)
                     .with_system(regen_health)
-                    .with_system(update_health_display),
+                    .label(Label::HealthUpdate)
+                    .after(Label::Movement),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::Start)
+                    .with_system(check_despawn)
+                    .with_system(despawn_enemies)
+                    .label(Label::Despawn)
+                    .after(Label::HealthUpdate),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::Start)
+                    .with_system(update_health_display)
+                    .with_system(update_enemy_render)
+                    .with_system(update_ui)
+                    .label(Label::UpdateSprites)
+                    .after(Label::Despawn),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Start)
@@ -62,4 +86,41 @@ fn setup_camera(mut commands: Commands) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(MainCamera);
+    commands.spawn_bundle(UiCameraBundle::default());
+}
+
+fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands
+        .spawn_bundle(TextBundle {
+            text: Text {
+                sections: vec![TextSection {
+                    value: "50.0%".to_string(),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/m5x7.ttf"),
+                        font_size: 32.0,
+                        color: Color::WHITE,
+                    },
+                }],
+                ..Default::default()
+            },
+            style: Style {
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(5.0),
+                    left: Val::Px(5.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Ui::MoraleDisplay);
+}
+
+fn update_ui(mut q_text_ui: Query<(&Ui, &mut Text)>, morale: Res<EnemyMorale>) {
+    for (ui, mut text) in q_text_ui.iter_mut() {
+        if let Ui::MoraleDisplay = ui {
+            text.sections[0].value = format!("{:.1}%", morale.0);
+        }
+    }
 }
