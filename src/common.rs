@@ -8,7 +8,8 @@ pub const SCREEN_HEIGHT: f32 = 720.0;
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
     AssetLoading,
-    MainMenu,
+    Opening,
+    MoraleStatus,
     ActiveGame,
 }
 
@@ -115,6 +116,9 @@ pub struct WaveManager {
     pub max_waves: u32,
     pub wave_timer: Timer,
 }
+
+#[derive(Component)]
+pub struct CurrentDay(pub u32);
 
 #[derive(PhysicsLayer)]
 pub enum GamePhysicsLayer {

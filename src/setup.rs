@@ -1,13 +1,15 @@
 use crate::{
     common::{
-        check_despawn, regen_health, DamagePlayerEvent, EnemyMorale, GameFonts, GameSprites,
-        GameState, Label, MainCamera, Ui, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        check_despawn, regen_health, CurrentDay, DamagePlayerEvent, EnemyMorale, GameFonts,
+        GameSprites, GameState, Label, MainCamera, Ui, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
         update_enemy, update_enemy_render,
     },
-    menu::{button_shift_narration, despawn_menu, spawn_menu},
+    menu::{
+        button_shift_narration, button_start_day, despawn_menu, spawn_menu, spawn_morale_status,
+    },
     player::{
         player_move, player_shoot, register_player_damage, spawn_player, update_health_display,
     },
@@ -22,7 +24,7 @@ pub struct GameSetup;
 impl Plugin for GameSetup {
     fn build(&self, app: &mut App) {
         AssetLoader::new(GameState::AssetLoading)
-            .continue_to_state(GameState::MainMenu)
+            .continue_to_state(GameState::Opening)
             .with_collection::<GameSprites>()
             .with_collection::<GameFonts>()
             .build(app);
@@ -43,18 +45,26 @@ impl Plugin for GameSetup {
                 max_waves: 4,
                 wave_timer: Timer::from_seconds(3.0, false),
             })
+            .insert_resource(CurrentDay(0))
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
             .add_event::<DamagePlayerEvent>()
             .add_system_set(
-                SystemSet::on_enter(GameState::MainMenu)
+                SystemSet::on_enter(GameState::Opening)
                     .with_system(setup_camera)
                     .with_system(spawn_menu),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::MainMenu).with_system(button_shift_narration),
+                SystemSet::on_update(GameState::Opening).with_system(button_shift_narration),
             )
-            .add_system_set(SystemSet::on_exit(GameState::MainMenu).with_system(despawn_menu))
+            .add_system_set(SystemSet::on_exit(GameState::Opening).with_system(despawn_menu))
+            .add_system_set(
+                SystemSet::on_enter(GameState::MoraleStatus).with_system(spawn_morale_status),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::MoraleStatus).with_system(button_start_day),
+            )
+            .add_system_set(SystemSet::on_exit(GameState::MoraleStatus).with_system(despawn_menu))
             .add_system_set(
                 SystemSet::on_enter(GameState::ActiveGame)
                     .with_system(spawn_player)
