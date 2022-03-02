@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy_asset_loader::AssetCollection;
 use heron::prelude::*;
@@ -21,6 +23,8 @@ pub struct GameSprites {
     pub fireball: Handle<Image>,
     #[asset(path = "sprites/soldier.png")]
     pub soldier: Handle<Image>,
+    #[asset(path = "sprites/grass.png")]
+    pub grass: Handle<Image>,
 }
 
 #[derive(AssetCollection)]
@@ -61,9 +65,12 @@ pub struct WaveCore {
 pub enum Ui {
     Core,
     HealthBarMain,
-    MoraleDisplay,
+    TimeLeftDisplay,
     NarrationText,
 }
+
+#[derive(Component)]
+pub struct InGameUI;
 
 #[derive(Component)]
 pub struct OpeningNarration(pub usize);
@@ -119,6 +126,15 @@ pub struct WaveManager {
 
 #[derive(Component)]
 pub struct CurrentDay(pub u32);
+
+#[derive(Component)]
+pub struct CurrentTime(pub Timer);
+
+impl CurrentTime {
+    pub fn time_remaining(&self) -> Duration {
+        Duration::from_secs(180).saturating_sub(self.0.elapsed())
+    }
+}
 
 #[derive(PhysicsLayer)]
 pub enum GamePhysicsLayer {

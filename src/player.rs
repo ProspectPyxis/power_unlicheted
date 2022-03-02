@@ -46,7 +46,7 @@ fn spawn_health_bar(commands: &mut Commands) -> Entity {
                 ..Default::default()
             },
             transform: Transform {
-                translation: Vec3::new(0.0, -15.0, 1.0),
+                translation: Vec3::new(0.0, -15.0, 10.0),
                 scale: Vec3::new(0.25, 0.25, 0.0),
                 ..Default::default()
             },

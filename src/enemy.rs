@@ -40,7 +40,7 @@ pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites
     for (x, y) in (0..wave_width).cartesian_product(0..wave_height) {
         let spawn_x = start_x + ((x as f32 - x as f32 / 2.0) * 40.0);
         let spawn_y = (-SCREEN_HEIGHT * 0.6) - ((y as f32 / 2.0) * 60.0);
-        let pos = Vec3::new(spawn_x, spawn_y, 0.0);
+        let pos = Vec3::new(spawn_x, spawn_y, 0.1);
         commands
             .spawn_bundle(SpriteBundle {
                 texture: sprites.soldier.clone(),
@@ -85,7 +85,7 @@ pub fn spawn_enemy_line_wave(commands: &mut Commands, sprites: Res<GameSprites>)
 
     for i in 0..wave_size {
         let spawn_x = (i as f32 * (SCREEN_WIDTH / wave_size as f32)) - SCREEN_WIDTH / 2.0;
-        let pos = Vec3::new(spawn_x, -SCREEN_HEIGHT * 0.6, 0.0);
+        let pos = Vec3::new(spawn_x, -SCREEN_HEIGHT * 0.6, 0.1);
         commands
             .spawn_bundle(SpriteBundle {
                 texture: sprites.soldier.clone(),
@@ -162,6 +162,7 @@ pub fn update_enemy(
                             .iter()
                             .filter(|(e, t)| {
                                 *e != ent
+                                    && current_pos.distance(t.translation) <= 40.0
                                     && current_pos.line_overlaps_circle(
                                         velocity.linear,
                                         ahead_len,
@@ -186,7 +187,6 @@ pub fn update_enemy(
                         } else {
                             Vec3::ZERO
                         };
-
                         let steering = (seek_force + avoidance).clamp_length_max(6.0);
                         velocity.linear = (velocity.linear + steering).clamp_length_max(speed);
                     }
