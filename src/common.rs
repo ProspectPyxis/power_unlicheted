@@ -104,13 +104,6 @@ impl Health {
 }
 
 #[derive(Component)]
-pub struct RegeneratesHealth {
-    pub regen: f32,
-    pub tick: Timer,
-    pub is_regenerating: bool,
-}
-
-#[derive(Component)]
 pub struct DamagesPlayer {
     pub damage: f32,
     pub tick: Timer,
@@ -130,6 +123,43 @@ pub enum GameOverButton {
     Restart,
     Credits,
     Exit,
+}
+
+pub enum PlayerSpell {
+    Fireball,
+    LightningStrike,
+}
+
+pub struct SpellCooldowns {
+    pub fireball: Timer,
+    pub lightning_strike: Timer,
+}
+
+impl Default for SpellCooldowns {
+    fn default() -> Self {
+        Self {
+            fireball: Timer::from_seconds(0.2, false),
+            lightning_strike: Timer::from_seconds(0.5, false),
+        }
+    }
+}
+
+impl SpellCooldowns {
+    pub fn tick_all(&mut self, delta: Duration) {
+        self.fireball.tick(delta);
+        self.lightning_strike.tick(delta);
+    }
+}
+
+#[derive(Component)]
+pub struct PlayerSpellData {
+    pub selected: PlayerSpell,
+    pub cooldowns: SpellCooldowns,
+}
+
+#[derive(Component)]
+pub struct LightningStrikeBolt {
+    pub end_y: f32,
 }
 
 // Resources
@@ -234,19 +264,6 @@ pub fn check_despawn(
     for (ent, mut timer) in q_despawn.iter_mut() {
         if timer.0.tick(time.delta()).just_finished() {
             commands.entity(ent).despawn_recursive();
-        }
-    }
-}
-
-/// Regenerates health for all entities that can regenerate health.
-pub fn regen_health(mut q_regen: Query<(&mut Health, &mut RegeneratesHealth)>, time: Res<Time>) {
-    for (mut health, mut regen) in q_regen.iter_mut().filter(|(_, e)| e.is_regenerating) {
-        if health.current < health.maximum {
-            if regen.tick.tick(time.delta()).just_finished() {
-                health.current = (health.current + regen.regen).min(health.maximum);
-            }
-        } else {
-            regen.tick.reset();
         }
     }
 }

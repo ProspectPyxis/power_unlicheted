@@ -1,8 +1,8 @@
 use crate::{
     common::{
-        check_despawn, regen_health, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy,
-        DayEndReason, EndDayEvent, Enemy, EnemyMorale, GameFonts, GameSprites, GameState, InGameUI,
-        Label, MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        check_despawn, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy, DayEndReason,
+        EndDayEvent, Enemy, EnemyMorale, GameFonts, GameSprites, GameState, InGameUI, Label,
+        MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -14,7 +14,7 @@ use crate::{
     },
     player::{
         display_player_controls, player_move, player_shoot, register_player_damage, spawn_player,
-        update_health_display,
+        tick_attack_cooldowns, update_health_display,
     },
     projectile::check_projectile_collision,
 };
@@ -101,7 +101,7 @@ impl Plugin for GameSetup {
                 SystemSet::on_update(GameState::ActiveGame)
                     .with_system(enemy_damage_player)
                     .with_system(register_player_damage)
-                    .with_system(regen_health)
+                    .with_system(tick_attack_cooldowns)
                     .label(Label::HealthUpdate)
                     .after(Label::CollisionCheck),
             )

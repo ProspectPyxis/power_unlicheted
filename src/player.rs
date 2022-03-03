@@ -1,7 +1,8 @@
 use crate::common::{
     get_cursor_position, CurrentDay, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer,
     EndDayEvent, EnemyMorale, GameFonts, GamePhysicsLayer, GameSprites, GameState, Health,
-    MainCamera, Player, Projectile, RegeneratesHealth, Ui, Vec3Utils, SCREEN_HEIGHT,
+    MainCamera, Player, PlayerSpell, PlayerSpellData, Projectile, SpellCooldowns, Ui, Vec3Utils,
+    SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
@@ -25,11 +26,10 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
             GamePhysicsLayer::Player,
             GamePhysicsLayer::Enemy,
         ))
-        .insert(Health::full(500.0))
-        .insert(RegeneratesHealth {
-            regen: 1.0,
-            tick: Timer::from_seconds(2.0, true),
-            is_regenerating: true,
+        .insert(Health::full(200.0))
+        .insert(PlayerSpellData {
+            selected: PlayerSpell::Fireball,
+            cooldowns: SpellCooldowns::default(),
         })
         .id();
 
@@ -83,55 +83,72 @@ pub fn player_move(
 pub fn player_shoot(
     mut commands: Commands,
     sprites: Res<GameSprites>,
-    q_player: Query<&Transform, With<Player>>,
+    mut q_player: Query<(&Transform, &mut PlayerSpellData), With<Player>>,
     wnds: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mouse_input: Res<Input<MouseButton>>,
 ) {
-    if mouse_input.just_pressed(MouseButton::Left) {
+    if mouse_input.pressed(MouseButton::Left) {
         if let Some(cursor_pos) = get_cursor_position(wnds, q_camera) {
-            if let Some(player) = q_player.iter().next() {
-                for i in -1..=1 {
-                    commands
-                        .spawn_bundle(SpriteBundle {
-                            texture: sprites.fireball.clone(),
-                            transform: Transform {
-                                translation: player.translation,
-                                scale: Vec3::new(2.0, 2.0, 0.0),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(Projectile)
-                        .insert(RigidBody::KinematicVelocityBased)
-                        .insert(Velocity::from_linear(
-                            (cursor_pos - player.translation.truncate())
-                                .extend(0.0)
-                                .normalize()
-                                .rotate_2d(PI * i as f32 / 16.0)
-                                * 360.0,
-                        ))
-                        .insert(CollisionShape::Sphere { radius: 8.0 })
-                        .insert(CollisionLayers::new(
-                            GamePhysicsLayer::PlayerAttack,
-                            GamePhysicsLayer::Enemy,
-                        ))
-                        .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
-                        .insert(DamagesEnemy { damage: 2.0 })
-                        .with_children(|parent| {
-                            parent
-                                .spawn_bundle(SpriteBundle::default())
-                                .insert(RigidBody::Sensor)
-                                .insert(CollisionShape::Sphere { radius: 16.0 })
-                                .insert(CollisionLayers::new(
-                                    GamePhysicsLayer::PlayerAttack,
-                                    GamePhysicsLayer::Enemy,
-                                ))
-                                .insert(DamagesEnemy { damage: 1.0 });
-                        });
+            if let Some((player_t, mut spell_data)) = q_player.iter_mut().next() {
+                match spell_data.selected {
+                    PlayerSpell::Fireball => {
+                        if spell_data.cooldowns.fireball.finished() {
+                            for i in -1..=1 {
+                                commands
+                                    .spawn_bundle(SpriteBundle {
+                                        texture: sprites.fireball.clone(),
+                                        transform: Transform {
+                                            translation: player_t.translation,
+                                            scale: Vec3::new(2.0, 2.0, 0.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    })
+                                    .insert(Projectile)
+                                    .insert(RigidBody::KinematicVelocityBased)
+                                    .insert(Velocity::from_linear(
+                                        (cursor_pos - player_t.translation.truncate())
+                                            .extend(0.0)
+                                            .normalize()
+                                            .rotate_2d(PI * i as f32 / 16.0)
+                                            * 360.0,
+                                    ))
+                                    .insert(CollisionShape::Sphere { radius: 8.0 })
+                                    .insert(CollisionLayers::new(
+                                        GamePhysicsLayer::PlayerAttack,
+                                        GamePhysicsLayer::Enemy,
+                                    ))
+                                    .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
+                                    .insert(DamagesEnemy { damage: 2.0 })
+                                    .with_children(|parent| {
+                                        parent
+                                            .spawn_bundle(SpriteBundle::default())
+                                            .insert(RigidBody::Sensor)
+                                            .insert(CollisionShape::Sphere { radius: 16.0 })
+                                            .insert(CollisionLayers::new(
+                                                GamePhysicsLayer::PlayerAttack,
+                                                GamePhysicsLayer::Enemy,
+                                            ))
+                                            .insert(DamagesEnemy { damage: 1.0 });
+                                    });
+                            }
+                            spell_data.cooldowns.fireball.reset();
+                        }
+                    }
+                    PlayerSpell::LightningStrike => {}
                 }
             }
         }
+    }
+}
+
+pub fn tick_attack_cooldowns(
+    mut q_player: Query<&mut PlayerSpellData, With<Player>>,
+    time: Res<Time>,
+) {
+    for mut player in q_player.iter_mut() {
+        player.cooldowns.tick_all(time.delta());
     }
 }
 
@@ -202,7 +219,7 @@ pub fn display_player_controls(
                 parent.spawn_bundle(TextBundle {
                     text: Text {
                         sections: vec![TextSection {
-                            value: "WASD: Move, LMB: Attack, 1234: Switch Attack".to_string(),
+                            value: "WASD: Move, LMB: Attack, 1234: Switch Spells".to_string(),
                             style: TextStyle {
                                 font: fonts.main.clone(),
                                 font_size: 32.0,
