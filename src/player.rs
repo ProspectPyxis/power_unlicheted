@@ -1,7 +1,7 @@
 use crate::common::{
-    get_cursor_position, DamagePlayerEvent, DamagesEnemy, DespawnTimer, EnemyMorale,
-    GamePhysicsLayer, GameSprites, Health, MainCamera, Player, Projectile, RegeneratesHealth, Ui,
-    Vec3Utils,
+    get_cursor_position, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent,
+    EnemyMorale, GamePhysicsLayer, GameSprites, GameState, Health, MainCamera, Player, Projectile,
+    RegeneratesHealth, Ui, Vec3Utils,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
@@ -139,11 +139,20 @@ pub fn register_player_damage(
     mut q_player: Query<&mut Health, With<Player>>,
     mut damages: EventReader<DamagePlayerEvent>,
     mut morale: ResMut<EnemyMorale>,
+    mut state: ResMut<State<GameState>>,
+    mut day_end_writer: EventWriter<EndDayEvent>,
 ) {
     if let Some(mut player) = q_player.iter_mut().next() {
         for damage in damages.iter() {
             player.current -= damage.0;
             morale.0 += damage.0 / 10.0;
+        }
+        if player.current <= 0.0 {
+            morale.0 += 25.0;
+            day_end_writer.send(EndDayEvent {
+                reason: DayEndReason::PlayerDeath,
+            });
+            state.set(GameState::MoraleStatus).unwrap();
         }
     }
 }
@@ -157,7 +166,10 @@ pub fn update_health_display(
         _ => None,
     }) {
         if let Ok(health) = q_player.get(parent.0) {
-            sprite.custom_size = Some(Vec2::new((health.current / health.maximum) * 100.0, 12.0));
+            sprite.custom_size = Some(Vec2::new(
+                (health.current / health.maximum).max(0.0) * 100.0,
+                12.0,
+            ));
             if health.current <= health.maximum * 0.25 {
                 sprite.color = Color::RED;
             } else {

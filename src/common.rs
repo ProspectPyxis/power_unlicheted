@@ -13,6 +13,7 @@ pub enum GameState {
     Opening,
     MoraleStatus,
     ActiveGame,
+    GameOver,
 }
 
 #[derive(AssetCollection)]
@@ -34,6 +35,15 @@ pub struct GameFonts {
 }
 
 pub struct DamagePlayerEvent(pub f32);
+
+pub enum DayEndReason {
+    Timeout,
+    PlayerDeath,
+}
+
+pub struct EndDayEvent {
+    pub reason: DayEndReason,
+}
 
 // Components
 
@@ -132,7 +142,7 @@ pub struct CurrentTime(pub Timer);
 
 impl CurrentTime {
     pub fn time_remaining(&self) -> Duration {
-        Duration::from_secs(180).saturating_sub(self.0.elapsed())
+        self.0.duration().saturating_sub(self.0.elapsed())
     }
 }
 

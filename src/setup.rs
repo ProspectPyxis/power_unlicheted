@@ -1,15 +1,16 @@
 use crate::{
     common::{
         check_despawn, regen_health, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy,
-        Enemy, EnemyMorale, GameFonts, GameSprites, GameState, InGameUI, Label, MainCamera, Player,
-        Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        DayEndReason, EndDayEvent, Enemy, EnemyMorale, GameFonts, GameSprites, GameState, InGameUI,
+        Label, MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
         update_enemy, update_enemy_render,
     },
     menu::{
-        button_shift_narration, button_start_day, despawn_menu, spawn_menu, spawn_morale_status,
+        button_shift_narration, button_start_day, despawn_menu, spawn_game_over, spawn_menu,
+        spawn_morale_status,
     },
     player::{
         player_move, player_shoot, register_player_damage, spawn_player, update_health_display,
@@ -48,11 +49,12 @@ impl Plugin for GameSetup {
                 wave_timer: Timer::from_seconds(3.0, false),
             })
             .insert_resource(CurrentDay(0))
-            .insert_resource(CurrentTime(Timer::from_seconds(180.0, false)))
+            .insert_resource(CurrentTime(Timer::from_seconds(60.0, false)))
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
             .add_plugin(TilemapPlugin)
             .add_event::<DamagePlayerEvent>()
+            .add_event::<EndDayEvent>()
             .add_system(set_texture_filters_to_nearest)
             .add_system_set(
                 SystemSet::on_enter(GameState::Opening)
@@ -116,7 +118,8 @@ impl Plugin for GameSetup {
                     .label(Label::UpdateSprites)
                     .after(Label::Despawn),
             )
-            .add_system_set(SystemSet::on_exit(GameState::ActiveGame).with_system(despawn_all));
+            .add_system_set(SystemSet::on_exit(GameState::ActiveGame).with_system(despawn_all))
+            .add_system_set(SystemSet::on_enter(GameState::GameOver).with_system(spawn_game_over));
     }
 }
 
@@ -176,15 +179,23 @@ fn setup_camera(mut commands: Commands) {
     commands.spawn_bundle(UiCameraBundle::default());
 }
 
-fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup_ui(mut commands: Commands, fonts: Res<GameFonts>, current_day: Res<CurrentDay>) {
     commands
         .spawn_bundle(TextBundle {
             text: Text {
                 sections: vec![
                     TextSection {
+                        value: format!("Day {}\n", current_day.0),
+                        style: TextStyle {
+                            font: fonts.main.clone(),
+                            font_size: 32.0,
+                            color: Color::WHITE,
+                        },
+                    },
+                    TextSection {
                         value: "Time left:\n".to_string(),
                         style: TextStyle {
-                            font: asset_server.load("fonts/m5x7.ttf"),
+                            font: fonts.main.clone(),
                             font_size: 32.0,
                             color: Color::WHITE,
                         },
@@ -192,7 +203,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TextSection {
                         value: "10:00\n".to_string(),
                         style: TextStyle {
-                            font: asset_server.load("fonts/m5x7.ttf"),
+                            font: fonts.main.clone(),
                             font_size: 32.0,
                             color: Color::WHITE,
                         },
@@ -215,17 +226,23 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(InGameUI);
 }
 
-fn reset_timer(mut current_time: ResMut<CurrentTime>) {
+fn reset_timer(mut current_time: ResMut<CurrentTime>, mut wave_manager: ResMut<WaveManager>) {
     current_time.0.reset();
+    wave_manager.wave_timer.reset();
+    wave_manager.active_waves = 0;
 }
 
 fn update_timer(
     time: Res<Time>,
     mut current_time: ResMut<CurrentTime>,
     mut state: ResMut<State<GameState>>,
+    mut day_end_writer: EventWriter<EndDayEvent>,
 ) {
     current_time.0.tick(time.delta());
     if current_time.0.finished() {
+        day_end_writer.send(EndDayEvent {
+            reason: DayEndReason::Timeout,
+        });
         state.set(GameState::MoraleStatus).unwrap();
     }
 }
@@ -234,7 +251,7 @@ fn update_ui(mut q_text_ui: Query<(&Ui, &mut Text)>, current_time: Res<CurrentTi
     for (ui, mut text) in q_text_ui.iter_mut() {
         if let Ui::TimeLeftDisplay = ui {
             let time_remaining = current_time.time_remaining().as_secs_f32().ceil() as u32;
-            text.sections[1].value = format!("{}:{:02}", time_remaining / 60, time_remaining % 60);
+            text.sections[2].value = format!("{}:{:02}", time_remaining / 60, time_remaining % 60);
         }
     }
 }
