@@ -1,9 +1,9 @@
 use crate::{
     common::{
-        animate_sprites, check_despawn, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy,
-        DayEndReason, EndDayEvent, Enemy, EnemyMorale, GameAudio, GameFonts, GameSprites,
-        GameState, InGameUI, Label, MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT,
-        SCREEN_WIDTH,
+        animate_sprites, check_despawn, check_invis, ChangeSpellEvent, CurrentDay, CurrentTime,
+        DamagePlayerEvent, DamagesEnemy, DayEndReason, EndDayEvent, Enemy, EnemyMorale, GameAudio,
+        GameFonts, GameSprites, GameState, InGameUI, Label, MainCamera, Player, Ui, WaveCore,
+        WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -14,9 +14,9 @@ use crate::{
         despawn_menu, spawn_credits, spawn_game_over, spawn_menu, spawn_morale_status,
     },
     player::{
-        display_player_controls, player_move, player_shoot, register_player_damage,
-        spawn_health_bar, spawn_player, switch_active_spell, tick_attack_cooldowns,
-        update_health_display,
+        display_player_controls, player_move, player_shoot, register_player_damage, spawn_player,
+        spawn_player_ui, switch_active_spell, tick_attack_cooldowns, update_health_bar,
+        update_spell_display,
     },
     projectile::{check_projectile_collision, update_lightning_bolt},
 };
@@ -61,6 +61,7 @@ impl Plugin for GameSetup {
             .add_plugin(AudioPlugin)
             .add_event::<DamagePlayerEvent>()
             .add_event::<EndDayEvent>()
+            .add_event::<ChangeSpellEvent>()
             .add_system(set_texture_filters_to_nearest)
             .add_system_set(
                 SystemSet::on_enter(GameState::Opening)
@@ -82,7 +83,7 @@ impl Plugin for GameSetup {
                 SystemSet::on_enter(GameState::ActiveGame)
                     .with_system(reset_timer)
                     .with_system(spawn_player)
-                    .with_system(spawn_health_bar)
+                    .with_system(spawn_player_ui)
                     .with_system(setup_ui)
                     .with_system(spawn_background)
                     .with_system(display_player_controls),
@@ -122,10 +123,12 @@ impl Plugin for GameSetup {
             )
             .add_system_set(
                 SystemSet::on_update(GameState::ActiveGame)
-                    .with_system(update_health_display)
+                    .with_system(update_health_bar)
+                    .with_system(update_spell_display)
                     .with_system(update_enemy_render)
                     .with_system(update_ui)
                     .with_system(animate_sprites)
+                    .with_system(check_invis)
                     .label(Label::UpdateSprites)
                     .after(Label::Despawn),
             )

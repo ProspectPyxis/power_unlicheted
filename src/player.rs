@@ -1,8 +1,8 @@
 use crate::common::{
-    get_cursor_position, CurrentDay, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer,
-    EndDayEvent, EnemyMorale, GameAudio, GameFonts, GamePhysicsLayer, GameSprites, GameState,
-    Health, LightningStrikeBolt, MainCamera, Player, PlayerSpell, PlayerSpellData, Projectile,
-    SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
+    get_cursor_position, ChangeSpellEvent, CurrentDay, DamagePlayerEvent, DamagesEnemy,
+    DayEndReason, DespawnTimer, EndDayEvent, EnemyMorale, GameAudio, GameFonts, GamePhysicsLayer,
+    GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt, MainCamera, Player,
+    PlayerSpell, PlayerSpellData, Projectile, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use bevy_kira_audio::Audio;
@@ -34,7 +34,7 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
         });
 }
 
-pub fn spawn_health_bar(mut commands: Commands) {
+pub fn spawn_player_ui(mut commands: Commands, sprites: Res<GameSprites>) {
     commands
         .spawn_bundle(SpriteBundle {
             sprite: Sprite {
@@ -48,7 +48,23 @@ pub fn spawn_health_bar(mut commands: Commands) {
             },
             ..Default::default()
         })
-        .insert(Ui::HealthBarMain);
+        .insert(Ui::HealthBarMain)
+        .insert(InGameUI);
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            texture: sprites.spell_icon_fireball.clone(),
+            transform: Transform {
+                translation: Vec3::new(0.0, 60.0, 15.0),
+                scale: Vec3::new(2.0, 2.0, 0.0),
+                ..Default::default()
+            },
+            visibility: Visibility { is_visible: false },
+            ..Default::default()
+        })
+        .insert(Ui::CurrentSpell)
+        .insert(InGameUI)
+        .insert(InvisTimer(Timer::from_seconds(1.0, false)));
 }
 
 pub fn player_move(
@@ -175,12 +191,15 @@ pub fn tick_attack_cooldowns(
 pub fn switch_active_spell(
     mut q_player: Query<&mut PlayerSpellData, With<Player>>,
     keyboard_input: Res<Input<KeyCode>>,
+    mut change_spell: EventWriter<ChangeSpellEvent>,
 ) {
     if let Some(mut spell_data) = q_player.iter_mut().next() {
-        if keyboard_input.just_pressed(KeyCode::Key1) {
-            spell_data.selected = PlayerSpell::Fireball;
-        } else if keyboard_input.just_pressed(KeyCode::Key2) {
-            spell_data.selected = PlayerSpell::LightningStrike;
+        if keyboard_input.just_pressed(KeyCode::E) {
+            spell_data.selected = spell_data.selected.next();
+            change_spell.send(ChangeSpellEvent(spell_data.selected));
+        } else if keyboard_input.just_pressed(KeyCode::Q) {
+            spell_data.selected = spell_data.selected.previous();
+            change_spell.send(ChangeSpellEvent(spell_data.selected));
         }
     }
 }
@@ -214,11 +233,11 @@ pub fn register_player_damage(
     }
 }
 
-pub fn update_health_display(
-    mut q_health_bar: Query<(&mut Sprite, &mut Transform, &Ui), Without<Player>>,
+pub fn update_health_bar(
+    mut q_ui: Query<(&mut Sprite, &mut Transform, &Ui), Without<Player>>,
     q_player: Query<(&Health, &Transform), With<Player>>,
 ) {
-    for (mut sprite, mut h_transform) in q_health_bar.iter_mut().filter_map(|(s, t, i)| match i {
+    for (mut sprite, mut h_transform) in q_ui.iter_mut().filter_map(|(s, t, i)| match i {
         Ui::HealthBarMain => Some((s, t)),
         _ => None,
     }) {
@@ -234,6 +253,45 @@ pub fn update_health_display(
             }
             h_transform.translation.x = p_transform.translation.x;
             h_transform.translation.y = p_transform.translation.y - 60.0;
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub fn update_spell_display(
+    mut q_ui: Query<
+        (
+            &mut Handle<Image>,
+            &mut Visibility,
+            &mut InvisTimer,
+            &mut Transform,
+            &Ui,
+        ),
+        Without<Player>,
+    >,
+    q_player: Query<&Transform, With<Player>>,
+    mut change_spell: EventReader<ChangeSpellEvent>,
+    sprites: Res<GameSprites>,
+) {
+    let spell_changed = change_spell.iter().next();
+    let player = q_player.iter().next();
+    for (texture, mut visibility, mut timer, mut transform) in
+        q_ui.iter_mut().filter_map(|(h, v, i, t, u)| match u {
+            Ui::CurrentSpell => Some((h, v, i, t)),
+            _ => None,
+        })
+    {
+        if let Some(spell) = spell_changed {
+            *texture.into_inner() = match spell.0 {
+                PlayerSpell::Fireball => sprites.spell_icon_fireball.clone(),
+                PlayerSpell::LightningStrike => sprites.spell_icon_lightning.clone(),
+            };
+            timer.0.reset();
+            visibility.is_visible = true;
+        }
+        if let Some(player) = player {
+            transform.translation.x = player.translation.x;
+            transform.translation.y = player.translation.y + 60.0;
         }
     }
 }
@@ -261,8 +319,7 @@ pub fn display_player_controls(
                 parent.spawn_bundle(TextBundle {
                     text: Text {
                         sections: vec![TextSection {
-                            value: "WASD: Move, LMB (Hold): Attack, 1234: Switch Spells"
-                                .to_string(),
+                            value: "WASD: Move, LMB (Hold): Attack, QE: Change Spells".to_string(),
                             style: TextStyle {
                                 font: fonts.main.clone(),
                                 font_size: 32.0,

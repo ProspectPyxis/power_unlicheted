@@ -29,6 +29,10 @@ pub struct GameSprites {
     #[asset(texture_atlas(tile_size_x = 64.0, tile_size_y = 64.0, columns = 1, rows = 4))]
     #[asset(path = "sprites/lightning_explosion.png")]
     pub lightning_explosion: Handle<TextureAtlas>,
+    #[asset(path = "sprites/spell_icon_fireball.png")]
+    pub spell_icon_fireball: Handle<Image>,
+    #[asset(path = "sprites/spell_icon_lightning.png")]
+    pub spell_icon_lightning: Handle<Image>,
     #[asset(path = "sprites/soldier.png")]
     pub soldier: Handle<Image>,
     #[asset(path = "sprites/grass.png")]
@@ -57,6 +61,8 @@ pub struct GameAudio {
     pub player_hurt: Handle<AudioSource>,
 }
 
+// Events
+
 pub struct DamagePlayerEvent(pub f32);
 
 pub enum DayEndReason {
@@ -67,6 +73,8 @@ pub enum DayEndReason {
 pub struct EndDayEvent {
     pub reason: DayEndReason,
 }
+
+pub struct ChangeSpellEvent(pub PlayerSpell);
 
 // Components
 
@@ -100,6 +108,7 @@ pub enum Ui {
     HealthBarMain,
     TimeLeftDisplay,
     NarrationText,
+    CurrentSpell,
 }
 
 #[derive(Component)]
@@ -139,6 +148,9 @@ pub struct DamagesEnemy {
 pub struct DespawnTimer(pub Timer);
 
 #[derive(Component)]
+pub struct InvisTimer(pub Timer);
+
+#[derive(Component)]
 pub struct Animated {
     pub frames: usize,
     pub timer: Timer,
@@ -151,9 +163,26 @@ pub enum GameOverButton {
     Exit,
 }
 
+#[derive(Clone, Copy)]
 pub enum PlayerSpell {
     Fireball,
     LightningStrike,
+}
+
+impl PlayerSpell {
+    pub fn next(&self) -> Self {
+        match self {
+            PlayerSpell::Fireball => PlayerSpell::LightningStrike,
+            PlayerSpell::LightningStrike => PlayerSpell::Fireball,
+        }
+    }
+
+    pub fn previous(&self) -> Self {
+        match self {
+            PlayerSpell::Fireball => PlayerSpell::LightningStrike,
+            PlayerSpell::LightningStrike => PlayerSpell::Fireball,
+        }
+    }
 }
 
 pub struct SpellCooldowns {
@@ -290,6 +319,15 @@ pub fn check_despawn(
     for (ent, mut timer) in q_despawn.iter_mut() {
         if timer.0.tick(time.delta()).just_finished() {
             commands.entity(ent).despawn_recursive();
+        }
+    }
+}
+
+/// Ticks all entities that can become invisible, and make them invisible if their time is up
+pub fn check_invis(time: Res<Time>, mut q_invis: Query<(&mut InvisTimer, &mut Visibility)>) {
+    for (mut timer, mut visibility) in q_invis.iter_mut() {
+        if timer.0.tick(time.delta()).just_finished() {
+            visibility.is_visible = false;
         }
     }
 }
