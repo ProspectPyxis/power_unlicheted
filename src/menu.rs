@@ -1,7 +1,8 @@
 use crate::common::{
-    CurrentDay, DayEndReason, EndDayEvent, EnemyMorale, GameFonts, GameState, OpeningNarration, Ui,
+    CurrentDay, DayEndReason, EndDayEvent, EnemyMorale, GameFonts, GameOverButton, GameSprites,
+    GameState, OpeningNarration, Ui,
 };
-use bevy::prelude::*;
+use bevy::{app::AppExit, prelude::*};
 
 // Narration
 
@@ -202,7 +203,7 @@ You should maintain the balance."
     let button_text = if current_day.0 == 0 {
         "Start Day"
     } else if morale.0 == 0.0 || morale.0 == 100.0 {
-        "Next"
+        "Game Over"
     } else {
         "Next Day"
     };
@@ -301,6 +302,42 @@ You should maintain the balance."
 
 // Game over
 
+#[allow(clippy::type_complexity)]
+pub fn button_game_over(
+    mut q_interaction: Query<
+        (&Interaction, &mut UiColor, &GameOverButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut state: ResMut<State<GameState>>,
+    mut morale: ResMut<EnemyMorale>,
+    mut current_day: ResMut<CurrentDay>,
+    mut exit_game_event: EventWriter<AppExit>,
+) {
+    for (interaction, mut color, button_type) in q_interaction.iter_mut() {
+        match *interaction {
+            Interaction::Clicked => match *button_type {
+                GameOverButton::Restart => {
+                    current_day.0 = 0;
+                    morale.0 = 50.0;
+                    state.set(GameState::MoraleStatus).unwrap();
+                }
+                GameOverButton::Exit => {
+                    exit_game_event.send(AppExit);
+                }
+                GameOverButton::Credits => {
+                    state.set(GameState::Credits).unwrap();
+                }
+            },
+            Interaction::Hovered => {
+                *color = BUTTON_HOVER.into();
+            }
+            Interaction::None => {
+                *color = BUTTON_NORMAL.into();
+            }
+        }
+    }
+}
+
 pub fn spawn_game_over(
     mut commands: Commands,
     fonts: Res<GameFonts>,
@@ -374,10 +411,182 @@ and you will perish from hunger."
                     },
                     ..Default::default()
                 })
-                .insert(Ui::NarrationText)
-                .insert(OpeningNarration(0));
+                .insert(Ui::NarrationText);
 
-            /*
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    color: Color::NONE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    let spawn_button =
+                        |parent: &mut ChildBuilder, text: &str, context: GameOverButton| {
+                            parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                                        margin: Rect {
+                                            top: Val::Px(30.0),
+                                            left: Val::Px(30.0),
+                                            right: Val::Px(30.0),
+                                            ..Default::default()
+                                        },
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    },
+                                    color: BUTTON_NORMAL.into(),
+                                    ..Default::default()
+                                })
+                                .insert(context)
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            text.to_string(),
+                                            TextStyle {
+                                                font: fonts.main.clone(),
+                                                font_size: 32.0,
+                                                color: Color::WHITE,
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                });
+                        };
+
+                    spawn_button(parent, "Restart", GameOverButton::Restart);
+                    spawn_button(parent, "Exit", GameOverButton::Exit);
+                    spawn_button(parent, "Credits", GameOverButton::Credits);
+                });
+        });
+}
+
+// Credits
+
+#[allow(clippy::type_complexity)]
+pub fn button_credits_back(
+    mut q_interaction: Query<(&Interaction, &mut UiColor), (Changed<Interaction>, With<Button>)>,
+    mut state: ResMut<State<GameState>>,
+) {
+    for (interaction, mut color) in q_interaction.iter_mut() {
+        match *interaction {
+            Interaction::Clicked => {
+                state.set(GameState::GameOver).unwrap();
+            }
+            Interaction::Hovered => {
+                *color = BUTTON_HOVER.into();
+            }
+            Interaction::None => {
+                *color = BUTTON_NORMAL.into();
+            }
+        }
+    }
+}
+
+pub fn spawn_credits(mut commands: Commands, fonts: Res<GameFonts>, sprites: Res<GameSprites>) {
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::ColumnReverse,
+                ..Default::default()
+            },
+            color: Color::NONE.into(),
+            ..Default::default()
+        })
+        .insert(Ui::Core)
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![
+                            TextSection {
+                                value: "Credits\n".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 64.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                            TextSection {
+                                value: "\nAssets:\nFont: ".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 32.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                            TextSection {
+                                value: "m5x7 by Daniel Linssen\nhttps://managore.itch.io/m5x7".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 32.0,
+                                    color: TEXT_COLOR,
+                                },
+                            },
+                            TextSection {
+                                value: "\nEnemy and Player Sprites: ".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 32.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                            TextSection {
+                                value: "16x16 DungeonTileset II by 0x72\nhttps://0x72.itch.io/dungeontileset-ii\n".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 32.0,
+                                    color: TEXT_COLOR,
+                                },
+                            },
+                            TextSection {
+                                value: "\n\nGame made by ".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 32.0,
+                                    color: TEXT_COLOR,
+                                },
+                            },
+                            TextSection {
+                                value: "ProspectPyxis".to_string(),
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 32.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                        ],
+                        alignment: TextAlignment {
+                            horizontal: HorizontalAlign::Center,
+                            vertical: VerticalAlign::Center,
+                        },
+                    },
+                    ..Default::default()
+                })
+                .insert(Ui::NarrationText);
+
+            parent.spawn_bundle(ImageBundle {
+                image: UiImage(sprites.bevy.clone()),
+                transform: Transform::from_scale(Vec3::new(0.5, 0.5, 0.0)),
+                style: Style {
+                    margin: Rect {
+                        top: Val::Px(30.0),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+
             parent
                 .spawn_bundle(ButtonBundle {
                     style: Style {
@@ -396,18 +605,17 @@ and you will perish from hunger."
                 .with_children(|parent| {
                     parent.spawn_bundle(TextBundle {
                         text: Text::with_section(
-                            "Next",
+                            "Back",
                             TextStyle {
                                 font: fonts.main.clone(),
                                 font_size: 32.0,
-                                color: TEXT_COLOR,
+                                color: Color::WHITE,
                             },
                             Default::default(),
                         ),
                         ..Default::default()
                     });
                 });
-            */
         });
 }
 

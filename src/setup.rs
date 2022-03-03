@@ -9,8 +9,8 @@ use crate::{
         update_enemy, update_enemy_render,
     },
     menu::{
-        button_shift_narration, button_start_day, despawn_menu, spawn_game_over, spawn_menu,
-        spawn_morale_status,
+        button_credits_back, button_game_over, button_shift_narration, button_start_day,
+        despawn_menu, spawn_credits, spawn_game_over, spawn_menu, spawn_morale_status,
     },
     player::{
         player_move, player_shoot, register_player_damage, spawn_player, update_health_display,
@@ -119,7 +119,14 @@ impl Plugin for GameSetup {
                     .after(Label::Despawn),
             )
             .add_system_set(SystemSet::on_exit(GameState::ActiveGame).with_system(despawn_all))
-            .add_system_set(SystemSet::on_enter(GameState::GameOver).with_system(spawn_game_over));
+            .add_system_set(SystemSet::on_enter(GameState::GameOver).with_system(spawn_game_over))
+            .add_system_set(SystemSet::on_update(GameState::GameOver).with_system(button_game_over))
+            .add_system_set(SystemSet::on_exit(GameState::GameOver).with_system(despawn_menu))
+            .add_system_set(SystemSet::on_enter(GameState::Credits).with_system(spawn_credits))
+            .add_system_set(
+                SystemSet::on_update(GameState::Credits).with_system(button_credits_back),
+            )
+            .add_system_set(SystemSet::on_exit(GameState::Credits).with_system(despawn_menu));
     }
 }
 

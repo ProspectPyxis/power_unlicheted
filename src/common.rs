@@ -14,6 +14,7 @@ pub enum GameState {
     MoraleStatus,
     ActiveGame,
     GameOver,
+    Credits,
 }
 
 #[derive(AssetCollection)]
@@ -26,6 +27,8 @@ pub struct GameSprites {
     pub soldier: Handle<Image>,
     #[asset(path = "sprites/grass.png")]
     pub grass: Handle<Image>,
+    #[asset(path = "sprites/bevy.png")]
+    pub bevy: Handle<Image>,
 }
 
 #[derive(AssetCollection)]
@@ -121,6 +124,13 @@ pub struct DamagesEnemy {
 
 #[derive(Component)]
 pub struct DespawnTimer(pub Timer);
+
+#[derive(Component)]
+pub enum GameOverButton {
+    Restart,
+    Credits,
+    Exit,
+}
 
 // Resources
 
