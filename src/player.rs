@@ -1,8 +1,8 @@
 use crate::common::{
     get_cursor_position, CurrentDay, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer,
     EndDayEvent, EnemyMorale, GameAudio, GameFonts, GamePhysicsLayer, GameSprites, GameState,
-    Health, MainCamera, Player, PlayerSpell, PlayerSpellData, Projectile, SpellCooldowns, Ui,
-    Vec3Utils, SCREEN_HEIGHT,
+    Health, LightningStrikeBolt, MainCamera, Player, PlayerSpell, PlayerSpellData, Projectile,
+    SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use bevy_kira_audio::Audio;
@@ -10,7 +10,7 @@ use heron::prelude::*;
 use std::f32::consts::PI;
 
 pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
-    let player = commands
+    commands
         .spawn_bundle(SpriteBundle {
             texture: sprites.lich.clone(),
             transform: Transform {
@@ -31,15 +31,11 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
         .insert(PlayerSpellData {
             selected: PlayerSpell::Fireball,
             cooldowns: SpellCooldowns::default(),
-        })
-        .id();
-
-    let hp_bar_main = spawn_health_bar(&mut commands);
-    commands.entity(player).add_child(hp_bar_main);
+        });
 }
 
-fn spawn_health_bar(commands: &mut Commands) -> Entity {
-    let hp_bar_main = commands
+pub fn spawn_health_bar(mut commands: Commands) {
+    commands
         .spawn_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::GREEN,
@@ -47,16 +43,12 @@ fn spawn_health_bar(commands: &mut Commands) -> Entity {
                 ..Default::default()
             },
             transform: Transform {
-                translation: Vec3::new(0.0, -15.0, 10.0),
-                scale: Vec3::new(0.25, 0.25, 0.0),
+                translation: Vec3::new(0.0, -60.0, 15.0),
                 ..Default::default()
             },
             ..Default::default()
         })
-        .insert(Ui::HealthBarMain)
-        .id();
-
-    hp_bar_main
+        .insert(Ui::HealthBarMain);
 }
 
 pub fn player_move(
@@ -127,7 +119,9 @@ pub fn player_shoot(
                                     .insert(DamagesEnemy { damage: 2.0 })
                                     .with_children(|parent| {
                                         parent
-                                            .spawn_bundle(SpriteBundle::default())
+                                            .spawn()
+                                            .insert(GlobalTransform::default())
+                                            .insert(Transform::default())
                                             .insert(RigidBody::Sensor)
                                             .insert(CollisionShape::Sphere { radius: 16.0 })
                                             .insert(CollisionLayers::new(
@@ -141,7 +135,28 @@ pub fn player_shoot(
                             spell_data.cooldowns.fireball.reset();
                         }
                     }
-                    PlayerSpell::LightningStrike => {}
+                    PlayerSpell::LightningStrike => {
+                        if spell_data.cooldowns.lightning_strike.finished() {
+                            commands
+                                .spawn_bundle(SpriteBundle {
+                                    texture: sprites.lightning_bolt.clone(),
+                                    transform: Transform {
+                                        translation: Vec3::new(
+                                            cursor_pos.x,
+                                            cursor_pos.y + SCREEN_HEIGHT + 24.0,
+                                            0.1,
+                                        ),
+                                        scale: Vec3::new(2.0, 2.0, 0.0),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(LightningStrikeBolt {
+                                    end_y: cursor_pos.y,
+                                });
+                            spell_data.cooldowns.lightning_strike.reset();
+                        }
+                    }
                 }
             }
         }
@@ -157,17 +172,37 @@ pub fn tick_attack_cooldowns(
     }
 }
 
+pub fn switch_active_spell(
+    mut q_player: Query<&mut PlayerSpellData, With<Player>>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if let Some(mut spell_data) = q_player.iter_mut().next() {
+        if keyboard_input.just_pressed(KeyCode::Key1) {
+            spell_data.selected = PlayerSpell::Fireball;
+        } else if keyboard_input.just_pressed(KeyCode::Key2) {
+            spell_data.selected = PlayerSpell::LightningStrike;
+        }
+    }
+}
+
 pub fn register_player_damage(
     mut q_player: Query<&mut Health, With<Player>>,
     mut damages: EventReader<DamagePlayerEvent>,
     mut morale: ResMut<EnemyMorale>,
     mut state: ResMut<State<GameState>>,
     mut day_end_writer: EventWriter<EndDayEvent>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
     if let Some(mut player) = q_player.iter_mut().next() {
+        let mut damaged = false;
         for damage in damages.iter() {
+            damaged = true;
             player.current -= damage.0;
             morale.0 += damage.0 / 10.0;
+        }
+        if damaged {
+            audio_player.play(audio.player_hurt.clone());
         }
         if player.current <= 0.0 {
             morale.0 += 25.0;
@@ -180,14 +215,14 @@ pub fn register_player_damage(
 }
 
 pub fn update_health_display(
-    mut q_health_bar: Query<(&Parent, &mut Sprite, &Ui)>,
-    q_player: Query<&Health, With<Player>>,
+    mut q_health_bar: Query<(&mut Sprite, &mut Transform, &Ui), Without<Player>>,
+    q_player: Query<(&Health, &Transform), With<Player>>,
 ) {
-    for (parent, mut sprite) in q_health_bar.iter_mut().filter_map(|(p, s, i)| match i {
-        Ui::HealthBarMain => Some((p, s)),
+    for (mut sprite, mut h_transform) in q_health_bar.iter_mut().filter_map(|(s, t, i)| match i {
+        Ui::HealthBarMain => Some((s, t)),
         _ => None,
     }) {
-        if let Ok(health) = q_player.get(parent.0) {
+        if let Some((health, p_transform)) = q_player.iter().next() {
             sprite.custom_size = Some(Vec2::new(
                 (health.current / health.maximum).max(0.0) * 100.0,
                 12.0,
@@ -197,6 +232,8 @@ pub fn update_health_display(
             } else {
                 sprite.color = Color::GREEN;
             }
+            h_transform.translation.x = p_transform.translation.x;
+            h_transform.translation.y = p_transform.translation.y - 60.0;
         }
     }
 }

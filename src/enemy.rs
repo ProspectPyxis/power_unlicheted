@@ -1,8 +1,9 @@
 use crate::common::{
-    DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GamePhysicsLayer, GameSprites,
-    Health, Player, Vec3Utils, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+    DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GameAudio, GamePhysicsLayer,
+    GameSprites, Health, Player, Vec3Utils, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
 use bevy::prelude::*;
+use bevy_kira_audio::Audio;
 use heron::prelude::*;
 use itertools::Itertools;
 
@@ -283,9 +284,13 @@ pub fn despawn_enemies(
     mut q_wave_cores: Query<(Entity, &mut WaveCore)>,
     mut morale: ResMut<EnemyMorale>,
     mut wave_manager: ResMut<WaveManager>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
+    let mut any_defeated = false;
     for (ent, health, transform, enemy) in q_enemies.iter() {
         let despawned = if health.current <= 0.0 {
+            any_defeated = true;
             commands.entity(ent).despawn();
             morale.0 -= 0.1;
             true
@@ -304,6 +309,9 @@ pub fn despawn_enemies(
                 }
             }
         }
+    }
+    if any_defeated {
+        audio_player.play(audio.enemy_kill.clone());
     }
     for (ent, wave_core) in q_wave_cores.iter_mut() {
         if wave_core.remaining == 0 {

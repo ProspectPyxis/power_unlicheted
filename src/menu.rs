@@ -51,8 +51,8 @@ pub fn button_shift_narration(
         for (interaction, mut color) in q_interaction.iter_mut() {
             match *interaction {
                 Interaction::Clicked => {
-                    narration_pos.0 += 1;
                     audio_player.play(audio.click.clone());
+                    narration_pos.0 += 1;
                     if narration_pos.0 >= NARRATION_LENGTH {
                         state.set(GameState::MoraleStatus).unwrap();
                     } else {

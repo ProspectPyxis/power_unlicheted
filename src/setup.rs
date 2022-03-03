@@ -1,8 +1,9 @@
 use crate::{
     common::{
-        check_despawn, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy, DayEndReason,
-        EndDayEvent, Enemy, EnemyMorale, GameAudio, GameFonts, GameSprites, GameState, InGameUI,
-        Label, MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        animate_sprites, check_despawn, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy,
+        DayEndReason, EndDayEvent, Enemy, EnemyMorale, GameAudio, GameFonts, GameSprites,
+        GameState, InGameUI, Label, MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT,
+        SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -13,10 +14,11 @@ use crate::{
         despawn_menu, spawn_credits, spawn_game_over, spawn_menu, spawn_morale_status,
     },
     player::{
-        display_player_controls, player_move, player_shoot, register_player_damage, spawn_player,
-        tick_attack_cooldowns, update_health_display,
+        display_player_controls, player_move, player_shoot, register_player_damage,
+        spawn_health_bar, spawn_player, switch_active_spell, tick_attack_cooldowns,
+        update_health_display,
     },
-    projectile::check_projectile_collision,
+    projectile::{check_projectile_collision, update_lightning_bolt},
 };
 use bevy::{prelude::*, render::render_resource::TextureUsages};
 use bevy_asset_loader::AssetLoader;
@@ -80,6 +82,7 @@ impl Plugin for GameSetup {
                 SystemSet::on_enter(GameState::ActiveGame)
                     .with_system(reset_timer)
                     .with_system(spawn_player)
+                    .with_system(spawn_health_bar)
                     .with_system(setup_ui)
                     .with_system(spawn_background)
                     .with_system(display_player_controls),
@@ -91,12 +94,14 @@ impl Plugin for GameSetup {
                     .with_system(spawn_enemy_wave)
                     .with_system(update_enemy)
                     .with_system(update_timer)
+                    .with_system(update_lightning_bolt)
                     .label(Label::Movement),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::ActiveGame)
                     .with_system(check_enemy_player_collision)
                     .with_system(check_projectile_collision)
+                    .with_system(switch_active_spell)
                     .label(Label::CollisionCheck)
                     .after(Label::Movement),
             )
@@ -120,6 +125,7 @@ impl Plugin for GameSetup {
                     .with_system(update_health_display)
                     .with_system(update_enemy_render)
                     .with_system(update_ui)
+                    .with_system(animate_sprites)
                     .label(Label::UpdateSprites)
                     .after(Label::Despawn),
             )
@@ -273,14 +279,17 @@ fn despawn_all(
     mut commands: Commands,
     q_enemies: Query<
         Entity,
-        Or<(
-            With<WaveCore>,
-            With<Enemy>,
-            With<Player>,
-            With<Map>,
-            With<InGameUI>,
-            With<DamagesEnemy>,
-        )>,
+        (
+            Or<(
+                With<WaveCore>,
+                With<Enemy>,
+                With<Player>,
+                With<Map>,
+                With<InGameUI>,
+                With<DamagesEnemy>,
+            )>,
+            Without<Parent>,
+        ),
     >,
 ) {
     for ent in q_enemies.iter() {

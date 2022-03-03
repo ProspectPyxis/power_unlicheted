@@ -24,6 +24,11 @@ pub struct GameSprites {
     pub lich: Handle<Image>,
     #[asset(path = "sprites/fireball.png")]
     pub fireball: Handle<Image>,
+    #[asset(path = "sprites/lightning_bolt.png")]
+    pub lightning_bolt: Handle<Image>,
+    #[asset(texture_atlas(tile_size_x = 64.0, tile_size_y = 64.0, columns = 1, rows = 4))]
+    #[asset(path = "sprites/lightning_explosion.png")]
+    pub lightning_explosion: Handle<TextureAtlas>,
     #[asset(path = "sprites/soldier.png")]
     pub soldier: Handle<Image>,
     #[asset(path = "sprites/grass.png")]
@@ -44,6 +49,12 @@ pub struct GameAudio {
     pub click: Handle<AudioSource>,
     #[asset(path = "sounds/fireball.wav")]
     pub fireball: Handle<AudioSource>,
+    #[asset(path = "sounds/lightning_explosion.wav")]
+    pub lightning_explosion: Handle<AudioSource>,
+    #[asset(path = "sounds/enemy_kill.wav")]
+    pub enemy_kill: Handle<AudioSource>,
+    #[asset(path = "sounds/player_hurt.wav")]
+    pub player_hurt: Handle<AudioSource>,
 }
 
 pub struct DamagePlayerEvent(pub f32);
@@ -128,6 +139,12 @@ pub struct DamagesEnemy {
 pub struct DespawnTimer(pub Timer);
 
 #[derive(Component)]
+pub struct Animated {
+    pub frames: usize,
+    pub timer: Timer,
+}
+
+#[derive(Component)]
 pub enum GameOverButton {
     Restart,
     Credits,
@@ -148,7 +165,7 @@ impl Default for SpellCooldowns {
     fn default() -> Self {
         Self {
             fireball: Timer::from_seconds(0.2, false),
-            lightning_strike: Timer::from_seconds(0.5, false),
+            lightning_strike: Timer::from_seconds(0.7, false),
         }
     }
 }
@@ -273,6 +290,18 @@ pub fn check_despawn(
     for (ent, mut timer) in q_despawn.iter_mut() {
         if timer.0.tick(time.delta()).just_finished() {
             commands.entity(ent).despawn_recursive();
+        }
+    }
+}
+
+/// Animates all sprites with attached animation
+pub fn animate_sprites(
+    time: Res<Time>,
+    mut q_anim: Query<(&mut Animated, &mut TextureAtlasSprite)>,
+) {
+    for (mut anim, mut sprite) in q_anim.iter_mut() {
+        if anim.timer.tick(time.delta()).just_finished() {
+            sprite.index = (sprite.index + 1) % anim.frames;
         }
     }
 }
