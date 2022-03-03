@@ -24,6 +24,15 @@ and they will win.
 \nYou must let them hope - but never let them stop fearing.",
 ];
 
+const GAME_TIPS: [&str; 3] = [
+    "Your body can be killed, as long as your phylactery lives.
+Perhaps letting them \"kill\" you can give them some hope.",
+    "Letting the soldiers flee with their lives can make them believe you're weak.
+Maybe one of your spells can assist with this...",
+    "They want to believe they are making progress in destroying you.
+Showing you cannot be hurt by them could crush their motivation.",
+];
+
 const BUTTON_NORMAL: Color = Color::rgb(0.15, 0.15, 0.15);
 const BUTTON_HOVER: Color = Color::rgb(0.25, 0.25, 0.25);
 
@@ -208,6 +217,12 @@ You should maintain the balance."
         "Next Day"
     };
 
+    let game_tip = if morale.0 == 0.0 || morale.0 == 100.0 {
+        "".to_string()
+    } else {
+        format!("\n\nTip: {}", GAME_TIPS[alea::u32_less_than(3) as usize])
+    };
+
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -255,6 +270,14 @@ You should maintain the balance."
                                 style: TextStyle {
                                     font: fonts.main.clone(),
                                     font_size: 32.0,
+                                    color: TEXT_COLOR,
+                                },
+                            },
+                            TextSection {
+                                value: game_tip,
+                                style: TextStyle {
+                                    font: fonts.main.clone(),
+                                    font_size: 16.0,
                                     color: TEXT_COLOR,
                                 },
                             },
@@ -345,19 +368,19 @@ pub fn spawn_game_over(
     current_day: Res<CurrentDay>,
 ) {
     let game_over_narration = if morale.0 == 100.0 {
-        "Recent victories have granted bravery to humans.
+        "Recent victories have granted bravery to humanity.
 \nInvigorated, they begin truly pushing you back,
 giving you defeat after defeat.
 \nSoon, you are driven back to your lair,
 and your phylactery is destroyed,
-truly freeing humanity from your grasp."
+freeing the world from your grasp."
     } else {
-        "The humans have found true despair.
+        "Humanity has found true despair.
 \nYour crushing victories against them
-means they have abandoned all hope.
+have made them give up on attacking.
 \nYou begin actively raiding settlements
-to keep your hunger sated,
-but soon, the souls will run out,
+in a desperate bid for more souls,
+but soon, they will run out,
 and you will perish from hunger."
     };
 
@@ -388,7 +411,7 @@ and you will perish from hunger."
                                 },
                             },
                             TextSection {
-                                value: "\n\nYour reign lasted:".to_string(),
+                                value: "\n\nYour reign lasted".to_string(),
                                 style: TextStyle {
                                     font: fonts.main.clone(),
                                     font_size: 32.0,

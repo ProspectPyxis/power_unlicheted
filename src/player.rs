@@ -1,7 +1,7 @@
 use crate::common::{
-    get_cursor_position, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent,
-    EnemyMorale, GamePhysicsLayer, GameSprites, GameState, Health, MainCamera, Player, Projectile,
-    RegeneratesHealth, Ui, Vec3Utils,
+    get_cursor_position, CurrentDay, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer,
+    EndDayEvent, EnemyMorale, GameFonts, GamePhysicsLayer, GameSprites, GameState, Health,
+    MainCamera, Player, Projectile, RegeneratesHealth, Ui, Vec3Utils, SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use heron::prelude::*;
@@ -176,5 +176,53 @@ pub fn update_health_display(
                 sprite.color = Color::GREEN;
             }
         }
+    }
+}
+
+pub fn display_player_controls(
+    mut commands: Commands,
+    current_day: Res<CurrentDay>,
+    fonts: Res<GameFonts>,
+) {
+    if current_day.0 == 1 {
+        commands
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    flex_direction: FlexDirection::ColumnReverse,
+                    ..Default::default()
+                },
+                color: Color::NONE.into(),
+                ..Default::default()
+            })
+            .insert(DespawnTimer(Timer::from_seconds(7.0, false)))
+            .with_children(|parent| {
+                parent.spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![TextSection {
+                            value: "WASD: Move, LMB: Attack, 1234: Switch Attack".to_string(),
+                            style: TextStyle {
+                                font: fonts.main.clone(),
+                                font_size: 32.0,
+                                color: Color::WHITE,
+                            },
+                        }],
+                        alignment: TextAlignment {
+                            horizontal: HorizontalAlign::Center,
+                            vertical: VerticalAlign::Center,
+                        },
+                    },
+                    style: Style {
+                        margin: Rect {
+                            top: Val::Px(SCREEN_HEIGHT * 0.3),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                });
+            });
     }
 }

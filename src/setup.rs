@@ -13,7 +13,8 @@ use crate::{
         despawn_menu, spawn_credits, spawn_game_over, spawn_menu, spawn_morale_status,
     },
     player::{
-        player_move, player_shoot, register_player_damage, spawn_player, update_health_display,
+        display_player_controls, player_move, player_shoot, register_player_damage, spawn_player,
+        update_health_display,
     },
     projectile::check_projectile_collision,
 };
@@ -77,7 +78,8 @@ impl Plugin for GameSetup {
                     .with_system(reset_timer)
                     .with_system(spawn_player)
                     .with_system(setup_ui)
-                    .with_system(spawn_background),
+                    .with_system(spawn_background)
+                    .with_system(display_player_controls),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::ActiveGame)
