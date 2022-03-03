@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_asset_loader::AssetCollection;
+use bevy_kira_audio::AudioSource;
 use heron::prelude::*;
 
 pub const SCREEN_WIDTH: f32 = 960.0;
@@ -35,6 +36,14 @@ pub struct GameSprites {
 pub struct GameFonts {
     #[asset(path = "fonts/m5x7.ttf")]
     pub main: Handle<Font>,
+}
+
+#[derive(AssetCollection)]
+pub struct GameAudio {
+    #[asset(path = "sounds/click.wav")]
+    pub click: Handle<AudioSource>,
+    #[asset(path = "sounds/fireball.wav")]
+    pub fireball: Handle<AudioSource>,
 }
 
 pub struct DamagePlayerEvent(pub f32);

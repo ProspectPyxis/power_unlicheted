@@ -1,8 +1,9 @@
 use crate::common::{
-    CurrentDay, DayEndReason, EndDayEvent, EnemyMorale, GameFonts, GameOverButton, GameSprites,
-    GameState, OpeningNarration, Ui,
+    CurrentDay, DayEndReason, EndDayEvent, EnemyMorale, GameAudio, GameFonts, GameOverButton,
+    GameSprites, GameState, OpeningNarration, Ui,
 };
 use bevy::{app::AppExit, prelude::*};
+use bevy_kira_audio::Audio;
 
 // Narration
 
@@ -43,12 +44,15 @@ pub fn button_shift_narration(
     mut q_interaction: Query<(&Interaction, &mut UiColor), (Changed<Interaction>, With<Button>)>,
     mut q_narration_text: Query<(&mut Text, &mut OpeningNarration)>,
     mut state: ResMut<State<GameState>>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
     if let Some((mut narration_text, mut narration_pos)) = q_narration_text.iter_mut().next() {
         for (interaction, mut color) in q_interaction.iter_mut() {
             match *interaction {
                 Interaction::Clicked => {
                     narration_pos.0 += 1;
+                    audio_player.play(audio.click.clone());
                     if narration_pos.0 >= NARRATION_LENGTH {
                         state.set(GameState::MoraleStatus).unwrap();
                     } else {
@@ -141,10 +145,13 @@ pub fn button_start_day(
     mut state: ResMut<State<GameState>>,
     morale: Res<EnemyMorale>,
     mut current_day: ResMut<CurrentDay>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
+                audio_player.play(audio.click.clone());
                 if morale.0 == 0.0 || morale.0 == 100.0 {
                     state.set(GameState::GameOver).unwrap();
                 } else {
@@ -335,22 +342,27 @@ pub fn button_game_over(
     mut morale: ResMut<EnemyMorale>,
     mut current_day: ResMut<CurrentDay>,
     mut exit_game_event: EventWriter<AppExit>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
     for (interaction, mut color, button_type) in q_interaction.iter_mut() {
         match *interaction {
-            Interaction::Clicked => match *button_type {
-                GameOverButton::Restart => {
-                    current_day.0 = 0;
-                    morale.0 = 50.0;
-                    state.set(GameState::MoraleStatus).unwrap();
+            Interaction::Clicked => {
+                audio_player.play(audio.click.clone());
+                match *button_type {
+                    GameOverButton::Restart => {
+                        current_day.0 = 0;
+                        morale.0 = 50.0;
+                        state.set(GameState::MoraleStatus).unwrap();
+                    }
+                    GameOverButton::Exit => {
+                        exit_game_event.send(AppExit);
+                    }
+                    GameOverButton::Credits => {
+                        state.set(GameState::Credits).unwrap();
+                    }
                 }
-                GameOverButton::Exit => {
-                    exit_game_event.send(AppExit);
-                }
-                GameOverButton::Credits => {
-                    state.set(GameState::Credits).unwrap();
-                }
-            },
+            }
             Interaction::Hovered => {
                 *color = BUTTON_HOVER.into();
             }
@@ -496,10 +508,13 @@ and you will perish from hunger."
 pub fn button_credits_back(
     mut q_interaction: Query<(&Interaction, &mut UiColor), (Changed<Interaction>, With<Button>)>,
     mut state: ResMut<State<GameState>>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
+                audio_player.play(audio.click.clone());
                 state.set(GameState::GameOver).unwrap();
             }
             Interaction::Hovered => {

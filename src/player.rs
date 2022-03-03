@@ -1,10 +1,11 @@
 use crate::common::{
     get_cursor_position, CurrentDay, DamagePlayerEvent, DamagesEnemy, DayEndReason, DespawnTimer,
-    EndDayEvent, EnemyMorale, GameFonts, GamePhysicsLayer, GameSprites, GameState, Health,
-    MainCamera, Player, PlayerSpell, PlayerSpellData, Projectile, SpellCooldowns, Ui, Vec3Utils,
-    SCREEN_HEIGHT,
+    EndDayEvent, EnemyMorale, GameAudio, GameFonts, GamePhysicsLayer, GameSprites, GameState,
+    Health, MainCamera, Player, PlayerSpell, PlayerSpellData, Projectile, SpellCooldowns, Ui,
+    Vec3Utils, SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
+use bevy_kira_audio::Audio;
 use heron::prelude::*;
 use std::f32::consts::PI;
 
@@ -80,13 +81,16 @@ pub fn player_move(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn player_shoot(
     mut commands: Commands,
     sprites: Res<GameSprites>,
+    audio: Res<GameAudio>,
     mut q_player: Query<(&Transform, &mut PlayerSpellData), With<Player>>,
     wnds: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mouse_input: Res<Input<MouseButton>>,
+    audio_player: Res<Audio>,
 ) {
     if mouse_input.pressed(MouseButton::Left) {
         if let Some(cursor_pos) = get_cursor_position(wnds, q_camera) {
@@ -133,6 +137,7 @@ pub fn player_shoot(
                                             .insert(DamagesEnemy { damage: 1.0 });
                                     });
                             }
+                            audio_player.play(audio.fireball.clone());
                             spell_data.cooldowns.fireball.reset();
                         }
                     }
@@ -219,7 +224,8 @@ pub fn display_player_controls(
                 parent.spawn_bundle(TextBundle {
                     text: Text {
                         sections: vec![TextSection {
-                            value: "WASD: Move, LMB: Attack, 1234: Switch Spells".to_string(),
+                            value: "WASD: Move, LMB (Hold): Attack, 1234: Switch Spells"
+                                .to_string(),
                             style: TextStyle {
                                 font: fonts.main.clone(),
                                 font_size: 32.0,

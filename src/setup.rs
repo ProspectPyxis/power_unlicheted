@@ -1,8 +1,8 @@
 use crate::{
     common::{
         check_despawn, CurrentDay, CurrentTime, DamagePlayerEvent, DamagesEnemy, DayEndReason,
-        EndDayEvent, Enemy, EnemyMorale, GameFonts, GameSprites, GameState, InGameUI, Label,
-        MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        EndDayEvent, Enemy, EnemyMorale, GameAudio, GameFonts, GameSprites, GameState, InGameUI,
+        Label, MainCamera, Player, Ui, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -21,6 +21,7 @@ use crate::{
 use bevy::{prelude::*, render::render_resource::TextureUsages};
 use bevy_asset_loader::AssetLoader;
 use bevy_ecs_tilemap::prelude::*;
+use bevy_kira_audio::AudioPlugin;
 use heron::prelude::*;
 
 pub struct GameSetup;
@@ -31,6 +32,7 @@ impl Plugin for GameSetup {
             .continue_to_state(GameState::Opening)
             .with_collection::<GameSprites>()
             .with_collection::<GameFonts>()
+            .with_collection::<GameAudio>()
             .build(app);
 
         app.add_state(GameState::AssetLoading)
@@ -54,6 +56,7 @@ impl Plugin for GameSetup {
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
             .add_plugin(TilemapPlugin)
+            .add_plugin(AudioPlugin)
             .add_event::<DamagePlayerEvent>()
             .add_event::<EndDayEvent>()
             .add_system(set_texture_filters_to_nearest)
