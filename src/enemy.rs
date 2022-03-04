@@ -232,6 +232,7 @@ pub fn update_enemy_render(
 pub fn check_enemy_player_collision(
     mut collision_events: EventReader<CollisionEvent>,
     mut q_enemies: Query<&mut DamagesPlayer, With<Enemy>>,
+    mut damage_writer: EventWriter<DamagePlayerEvent>,
 ) {
     fn is_player(layers: CollisionLayers) -> bool {
         layers.contains_group(GamePhysicsLayer::Player)
@@ -256,6 +257,7 @@ pub fn check_enemy_player_collision(
         if let Ok(mut enemy) = q_enemies.get_mut(e_enemy) {
             match evt {
                 CollisionEvent::Started(_d1, _d2) => {
+                    damage_writer.send(DamagePlayerEvent(enemy.damage));
                     enemy.is_damaging = true;
                 }
                 CollisionEvent::Stopped(_d1, _d2) => {

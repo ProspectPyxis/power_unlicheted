@@ -56,7 +56,10 @@ impl Plugin for GameSetup {
                 max_waves: 4,
                 wave_timer: Timer::from_seconds(3.0, false),
             })
-            .insert_resource(CurrentDay(0))
+            .insert_resource(CurrentDay {
+                day: 0,
+                player_damaged: 0.0,
+            })
             .insert_resource(CurrentTime(Timer::from_seconds(60.0, false)))
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
@@ -209,7 +212,7 @@ fn setup_ui(mut commands: Commands, fonts: Res<GameFonts>, current_day: Res<Curr
             text: Text {
                 sections: vec![
                     TextSection {
-                        value: format!("Day {}\n", current_day.0),
+                        value: format!("Day {}\n", current_day.day),
                         style: TextStyle {
                             font: fonts.main.clone(),
                             font_size: 32.0,

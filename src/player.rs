@@ -207,9 +207,9 @@ pub fn switch_active_spell(
 pub fn register_player_damage(
     mut q_player: Query<&mut Health, With<Player>>,
     mut damages: EventReader<DamagePlayerEvent>,
-    mut morale: ResMut<EnemyMorale>,
     mut state: ResMut<State<GameState>>,
     mut day_end_writer: EventWriter<EndDayEvent>,
+    mut current_day: ResMut<CurrentDay>,
     audio: Res<GameAudio>,
     audio_player: Res<Audio>,
 ) {
@@ -217,8 +217,8 @@ pub fn register_player_damage(
         let mut damaged = false;
         for damage in damages.iter() {
             damaged = true;
+            current_day.player_damaged += damage.0;
             player.current -= damage.0;
-            morale.change += damage.0 / 10.0;
         }
         if damaged {
             audio_player.play(audio.player_hurt.clone());
@@ -300,7 +300,7 @@ pub fn display_player_controls(
     current_day: Res<CurrentDay>,
     fonts: Res<GameFonts>,
 ) {
-    if current_day.0 == 1 {
+    if current_day.day == 1 {
         commands
             .spawn_bundle(NodeBundle {
                 style: Style {

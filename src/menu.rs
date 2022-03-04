@@ -160,7 +160,8 @@ pub fn button_start_day(
                 if morale.current == 0.0 || morale.current == 100.0 {
                     state.set(GameState::GameOver).unwrap();
                 } else {
-                    current_day.0 += 1;
+                    current_day.player_damaged = 0.0;
+                    current_day.day += 1;
                     state.set(GameState::ActiveGame).unwrap();
                 }
             }
@@ -184,36 +185,50 @@ pub fn spawn_morale_status(
     let day_end = day_end_reader.iter().next();
     if let Some(day_end) = day_end {
         if let DayEndReason::PlayerDeath = day_end.reason {
-            morale.change = (morale.change + 15.0).max(10.0);
+            morale.change = (morale.change + 25.0).max(10.0);
+        } else if current_day.player_damaged < 3.0 {
+            morale.change = (if morale.change >= 0.0 {
+                morale.change / 2.0
+            } else {
+                morale.change
+            }) - 15.0;
+        } else {
+            morale.change += current_day.player_damaged / 10.0;
         }
     }
     // Setup morale values
-    if current_day.0 == 1 {
+    if current_day.day == 1 {
         morale.current = (morale.current + morale.change).clamp(15.0, 85.0);
-    } else if current_day.0 > 0 {
+    } else if current_day.day > 0 {
         morale.current =
-            (morale.current + (morale.change * current_day.0 as f32 / 4.0)).clamp(0.0, 100.0);
+            (morale.current + (morale.change * current_day.day as f32 / 4.0)).clamp(0.0, 100.0);
     }
     morale.change = 0.0;
 
     let morale_text_prelude = if let Some(day_end) = day_end {
-        match day_end.reason {
-            DayEndReason::Timeout => {
-                "As the day closes, you take stock
+        if current_day.player_damaged < 3.0 {
+            "You have shown them your strength today - 
+the army barely hurt you at all.
+They despair at their powerlessness.\n\n"
+        } else {
+            match day_end.reason {
+                DayEndReason::Timeout => {
+                    "As the day closes, you take stock
 of your action's effects.\n\n"
-            }
-            DayEndReason::PlayerDeath => {
-                "Whether by carelessness or intentional feint,
+                }
+                DayEndReason::PlayerDeath => {
+                    "Whether by carelessness or intentional feint,
 you have fallen in battle today.
 Your phylactery keeps you alive,
 but the army celebrates its victory.\n\n"
+                }
             }
         }
     } else {
         ""
     };
 
-    let morale_text_end = if current_day.0 == 0 {
+    let morale_text_end = if current_day.day == 0 {
         "\nThe next army is about to arrive..."
     } else if morale.current == 0.0 || morale.current == 100.0 {
         ""
@@ -230,7 +245,7 @@ allow them to hurt you, or escape your wrath."
 You should maintain this balance."
     };
 
-    let button_text = if current_day.0 == 0 {
+    let button_text = if current_day.day == 0 {
         "Start Day"
     } else if morale.current == 0.0 || morale.current == 100.0 {
         "Game Over"
@@ -368,7 +383,7 @@ pub fn button_game_over(
                 audio_player.play(audio.click.clone());
                 match *button_type {
                     GameOverButton::Restart => {
-                        current_day.0 = 0;
+                        current_day.day = 0;
                         morale.current = 50.0;
                         state.set(GameState::MoraleStatus).unwrap();
                     }
@@ -448,7 +463,7 @@ and you will perish from hunger."
                                 },
                             },
                             TextSection {
-                                value: format!("\n{} days", current_day.0),
+                                value: format!("\n{} days", current_day.day),
                                 style: TextStyle {
                                     font: fonts.main.clone(),
                                     font_size: 64.0,

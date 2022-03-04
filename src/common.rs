@@ -233,7 +233,10 @@ pub struct WaveManager {
 }
 
 #[derive(Component)]
-pub struct CurrentDay(pub u32);
+pub struct CurrentDay {
+    pub day: u32,
+    pub player_damaged: f32,
+}
 
 #[derive(Component)]
 pub struct CurrentTime(pub Timer);
