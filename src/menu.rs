@@ -1,11 +1,10 @@
 use crate::common::{
     CurrentDay, DayEndReason, EndDayEvent, EnemyMorale, GameAudio, GameFonts, GameOverButton,
-    GameSprites, GameState, OpeningNarration, Ui,
+    GameSprites, GameState, MainMenuButton, NarrationViewed, OpeningNarration, Ui,
 };
 use bevy::{app::AppExit, prelude::*};
+use bevy_ecs_tilemap::prelude::*;
 use bevy_kira_audio::Audio;
-
-// Narration
 
 const NARRATION_LENGTH: usize = 2;
 const OPENING_NARRATION: [&str; NARRATION_LENGTH] = [
@@ -25,7 +24,7 @@ and they will win.
 \nYou must let them hope - but never let them stop fearing.",
 ];
 
-const GAME_TIPS_COUNT: usize = 7;
+const GAME_TIPS_COUNT: usize = 6;
 const GAME_TIPS: [&str; GAME_TIPS_COUNT] = [
     "Your body can be killed, as long as your phylactery lives.
 Perhaps letting them \"kill\" you can give them some hope.",
@@ -35,8 +34,6 @@ Maybe one of your spells can assist with this...",
 Showing you cannot be hurt by them could crush their morale.",
     "They want to believe they are making progress in destroying you.
 If you want to give them hope, let them hurt you.",
-    "To them, any progress is better than no progress.
-They will celebrate over killing even your weak minions.",
     "Humanity is smart - they will catch on to your intents sooner or later.
 Morale will become harder to keep in check over time.",
     "You need to put up at least somewhat of a fight.
@@ -47,6 +44,131 @@ const BUTTON_NORMAL: Color = Color::rgb(0.15, 0.15, 0.15);
 const BUTTON_HOVER: Color = Color::rgb(0.25, 0.25, 0.25);
 
 const TEXT_COLOR: Color = Color::rgb(0.85, 0.85, 0.85);
+
+// Main Menu
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+pub fn button_main_menu(
+    mut q_interaction: Query<
+        (&Interaction, &mut UiColor, &MainMenuButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut state: ResMut<State<GameState>>,
+    mut morale: ResMut<EnemyMorale>,
+    mut current_day: ResMut<CurrentDay>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
+    mut app_exit: EventWriter<AppExit>,
+    mut narration_viewed: ResMut<NarrationViewed>,
+) {
+    for (interaction, mut color, button_type) in q_interaction.iter_mut() {
+        match *interaction {
+            Interaction::Clicked => {
+                audio_player.play(audio.click.clone());
+                match *button_type {
+                    MainMenuButton::Start => {
+                        current_day.day = 0;
+                        morale.current = 50.0;
+                        if !narration_viewed.0 {
+                            narration_viewed.0 = true;
+                            state.set(GameState::Opening).unwrap();
+                        } else {
+                            state.set(GameState::MoraleStatus).unwrap();
+                        }
+                    }
+                    MainMenuButton::Credits => {
+                        state.set(GameState::Credits).unwrap();
+                    }
+                    MainMenuButton::Exit => {
+                        app_exit.send(AppExit);
+                    }
+                }
+            }
+            Interaction::Hovered => {
+                *color = BUTTON_HOVER.into();
+            }
+            Interaction::None => {
+                *color = BUTTON_NORMAL.into();
+            }
+        }
+    }
+}
+
+pub fn spawn_main_menu(mut commands: Commands, fonts: Res<GameFonts>, sprites: Res<GameSprites>) {
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                justify_content: JustifyContent::SpaceEvenly,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::ColumnReverse,
+                ..Default::default()
+            },
+            color: Color::NONE.into(),
+            ..Default::default()
+        })
+        .insert(Ui::Core)
+        .with_children(|parent| {
+            parent.spawn_bundle(ImageBundle {
+                image: UiImage(sprites.game_logo.clone()),
+                ..Default::default()
+            });
+
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    color: Color::NONE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    let spawn_button =
+                        |parent: &mut ChildBuilder, text: &str, context: MainMenuButton| {
+                            parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                                        margin: Rect {
+                                            top: Val::Px(30.0),
+                                            left: Val::Px(30.0),
+                                            right: Val::Px(30.0),
+                                            ..Default::default()
+                                        },
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    },
+                                    color: BUTTON_NORMAL.into(),
+                                    ..Default::default()
+                                })
+                                .insert(context)
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            text.to_string(),
+                                            TextStyle {
+                                                font: fonts.main.clone(),
+                                                font_size: 32.0,
+                                                color: Color::WHITE,
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                });
+                        };
+
+                    spawn_button(parent, "Start", MainMenuButton::Start);
+                    spawn_button(parent, "Credits", MainMenuButton::Credits);
+                });
+        });
+}
+
+// Narration
 
 #[allow(clippy::type_complexity)]
 pub fn button_shift_narration(
@@ -390,7 +512,6 @@ pub fn button_game_over(
     mut state: ResMut<State<GameState>>,
     mut morale: ResMut<EnemyMorale>,
     mut current_day: ResMut<CurrentDay>,
-    mut exit_game_event: EventWriter<AppExit>,
     audio: Res<GameAudio>,
     audio_player: Res<Audio>,
 ) {
@@ -404,11 +525,8 @@ pub fn button_game_over(
                         morale.current = 50.0;
                         state.set(GameState::MoraleStatus).unwrap();
                     }
-                    GameOverButton::Exit => {
-                        exit_game_event.send(AppExit);
-                    }
-                    GameOverButton::Credits => {
-                        state.set(GameState::Credits).unwrap();
+                    GameOverButton::MainMenu => {
+                        state.set(GameState::MainMenu).unwrap();
                     }
                 }
             }
@@ -545,8 +663,7 @@ and you will perish from hunger."
                         };
 
                     spawn_button(parent, "Restart", GameOverButton::Restart);
-                    spawn_button(parent, "Exit", GameOverButton::Exit);
-                    spawn_button(parent, "Credits", GameOverButton::Credits);
+                    spawn_button(parent, "Main Menu", GameOverButton::MainMenu);
                 });
         });
 }
@@ -564,7 +681,7 @@ pub fn button_credits_back(
         match *interaction {
             Interaction::Clicked => {
                 audio_player.play(audio.click.clone());
-                state.set(GameState::GameOver).unwrap();
+                state.set(GameState::MainMenu).unwrap();
             }
             Interaction::Hovered => {
                 *color = BUTTON_HOVER.into();
@@ -581,7 +698,7 @@ pub fn spawn_credits(mut commands: Commands, fonts: Res<GameFonts>, sprites: Res
         .spawn_bundle(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                justify_content: JustifyContent::Center,
+                justify_content: JustifyContent::SpaceBetween,
                 align_items: AlignItems::Center,
                 flex_direction: FlexDirection::ColumnReverse,
                 ..Default::default()
@@ -680,6 +797,7 @@ pub fn spawn_credits(mut commands: Commands, fonts: Res<GameFonts>, sprites: Res
                         size: Size::new(Val::Px(150.0), Val::Px(65.0)),
                         margin: Rect {
                             top: Val::Px(30.0),
+                            bottom: Val::Px(30.0),
                             ..Default::default()
                         },
                         justify_content: JustifyContent::Center,
@@ -706,10 +824,17 @@ pub fn spawn_credits(mut commands: Commands, fonts: Res<GameFonts>, sprites: Res
         });
 }
 
-pub fn despawn_menu(mut commands: Commands, q_ui: Query<(Entity, &Ui), With<Children>>) {
+pub fn despawn_menu(
+    mut commands: Commands,
+    q_ui: Query<(Entity, &Ui), With<Children>>,
+    q_tilemap: Query<Entity, With<Map>>,
+) {
     for (ent, ui) in q_ui.iter() {
         if let Ui::Core = ui {
             commands.entity(ent).despawn_recursive();
         }
+    }
+    for ent in q_tilemap.iter() {
+        commands.entity(ent).despawn_recursive();
     }
 }

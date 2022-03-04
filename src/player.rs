@@ -3,6 +3,7 @@ use crate::common::{
     DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent, EnemyMorale, GameAudio, GameFonts,
     GamePhysicsLayer, GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt,
     MainCamera, Player, PlayerSpell, PlayerSpellData, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
+    SCREEN_WIDTH,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use bevy_kira_audio::Audio;
@@ -89,6 +90,14 @@ pub fn player_move(
         if keyboard_input.pressed(KeyCode::S) {
             transform.translation.y -= 4.0;
         }
+        transform.translation.x = transform
+            .translation
+            .x
+            .clamp(-SCREEN_WIDTH / 2.0 + 32.0, SCREEN_WIDTH / 2.0 - 32.0);
+        transform.translation.y = transform
+            .translation
+            .y
+            .clamp(-SCREEN_HEIGHT / 2.0 + 40.0, SCREEN_HEIGHT / 2.0 + 40.0);
     }
 }
 
@@ -154,7 +163,7 @@ pub fn player_shoot(
                                             ))
                                             .insert(DamagesEnemy {
                                                 damage: 1.0,
-                                                induces_fear: true,
+                                                induces_fear: false,
                                             });
                                     });
                             }

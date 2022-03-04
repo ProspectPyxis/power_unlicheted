@@ -11,6 +11,7 @@ pub const SCREEN_HEIGHT: f32 = 720.0;
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
     AssetLoading,
+    MainMenu,
     Opening,
     MoraleStatus,
     ActiveGame,
@@ -20,6 +21,8 @@ pub enum GameState {
 
 #[derive(AssetCollection)]
 pub struct GameSprites {
+    #[asset(path = "sprites/game_logo.png")]
+    pub game_logo: Handle<Image>,
     #[asset(path = "sprites/lich.png")]
     pub lich: Handle<Image>,
     #[asset(path = "sprites/fireball.png")]
@@ -177,10 +180,16 @@ pub struct Animated {
 }
 
 #[derive(Component)]
-pub enum GameOverButton {
-    Restart,
+pub enum MainMenuButton {
+    Start,
     Credits,
     Exit,
+}
+
+#[derive(Component)]
+pub enum GameOverButton {
+    Restart,
+    MainMenu,
 }
 
 #[derive(Clone, Copy)]
@@ -246,6 +255,9 @@ pub struct LightningStrikeBolt {
 }
 
 // Resources
+
+#[derive(Component)]
+pub struct NarrationViewed(pub bool);
 
 #[derive(Component)]
 pub struct EnemyMorale {

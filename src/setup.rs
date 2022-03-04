@@ -2,8 +2,8 @@ use crate::{
     common::{
         animate_sprites, check_despawn, check_invis, ChangeSpellEvent, CurrentDay, CurrentTime,
         DamagePlayerEvent, DamagesEnemy, DayEndReason, EndDayEvent, EnemyMorale, GameAudio,
-        GameFonts, GameSprites, GameState, InGameUI, Label, MainCamera, Ui, WaveCore, WaveManager,
-        SCREEN_HEIGHT, SCREEN_WIDTH,
+        GameFonts, GameSprites, GameState, InGameUI, Label, MainCamera, NarrationViewed, Ui,
+        WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player,
@@ -11,8 +11,9 @@ use crate::{
         update_enemy_shoot,
     },
     menu::{
-        button_credits_back, button_game_over, button_shift_narration, button_start_day,
-        despawn_menu, spawn_credits, spawn_game_over, spawn_menu, spawn_morale_status,
+        button_credits_back, button_game_over, button_main_menu, button_shift_narration,
+        button_start_day, despawn_menu, spawn_credits, spawn_game_over, spawn_main_menu,
+        spawn_menu, spawn_morale_status,
     },
     player::{
         display_player_controls, player_move, player_shoot, register_player_damage, spawn_player,
@@ -32,7 +33,7 @@ pub struct GameSetup;
 impl Plugin for GameSetup {
     fn build(&self, app: &mut App) {
         AssetLoader::new(GameState::AssetLoading)
-            .continue_to_state(GameState::Opening)
+            .continue_to_state(GameState::MainMenu)
             .with_collection::<GameSprites>()
             .with_collection::<GameFonts>()
             .with_collection::<GameAudio>()
@@ -41,7 +42,7 @@ impl Plugin for GameSetup {
         app.add_state(GameState::AssetLoading)
             .insert_resource(Msaa { samples: 1 })
             .insert_resource(WindowDescriptor {
-                title: "Power Unlicheted".to_string(),
+                title: "Power UnLicheted".to_string(),
                 width: SCREEN_WIDTH,
                 height: SCREEN_HEIGHT,
                 resizable: false,
@@ -62,6 +63,7 @@ impl Plugin for GameSetup {
                 day: 0,
                 player_damaged: 0.0,
             })
+            .insert_resource(NarrationViewed(false))
             .insert_resource(CurrentTime(Timer::from_seconds(60.0, false)))
             .add_plugins(DefaultPlugins)
             .add_plugin(PhysicsPlugin::default())
@@ -70,12 +72,16 @@ impl Plugin for GameSetup {
             .add_event::<DamagePlayerEvent>()
             .add_event::<EndDayEvent>()
             .add_event::<ChangeSpellEvent>()
+            .add_startup_system(setup_camera)
             .add_system(set_texture_filters_to_nearest)
             .add_system_set(
-                SystemSet::on_enter(GameState::Opening)
-                    .with_system(setup_camera)
-                    .with_system(spawn_menu),
+                SystemSet::on_enter(GameState::MainMenu)
+                    .with_system(spawn_main_menu)
+                    .with_system(spawn_background),
             )
+            .add_system_set(SystemSet::on_update(GameState::MainMenu).with_system(button_main_menu))
+            .add_system_set(SystemSet::on_exit(GameState::MainMenu).with_system(despawn_menu))
+            .add_system_set(SystemSet::on_enter(GameState::Opening).with_system(spawn_menu))
             .add_system_set(
                 SystemSet::on_update(GameState::Opening).with_system(button_shift_narration),
             )
