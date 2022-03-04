@@ -97,9 +97,6 @@ pub struct MainCamera;
 #[derive(Component)]
 pub struct Player;
 
-#[derive(Component)]
-pub struct BlockableProjectile;
-
 pub enum EnemyAI {
     ChasesPlayer { speed: f32 },
     Archer { target_y: f32 },
@@ -183,7 +180,6 @@ pub struct Animated {
 pub enum MainMenuButton {
     Start,
     Credits,
-    Exit,
 }
 
 #[derive(Component)]

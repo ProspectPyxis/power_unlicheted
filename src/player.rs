@@ -1,9 +1,8 @@
 use crate::common::{
-    get_cursor_position, BlockableProjectile, ChangeSpellEvent, CurrentDay, DamagePlayerEvent,
-    DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent, EnemyMorale, GameAudio, GameFonts,
-    GamePhysicsLayer, GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt,
-    MainCamera, Player, PlayerSpell, PlayerSpellData, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
-    SCREEN_WIDTH,
+    get_cursor_position, ChangeSpellEvent, CurrentDay, DamagePlayerEvent, DamagesEnemy,
+    DayEndReason, DespawnTimer, EndDayEvent, EnemyMorale, GameAudio, GameFonts, GamePhysicsLayer,
+    GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt, MainCamera, Player,
+    PlayerSpell, PlayerSpellData, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use bevy_kira_audio::Audio;
@@ -131,7 +130,6 @@ pub fn player_shoot(
                                         },
                                         ..Default::default()
                                     })
-                                    .insert(BlockableProjectile)
                                     .insert(RigidBody::KinematicVelocityBased)
                                     .insert(Velocity::from_linear(
                                         (cursor_pos - player_t.translation.truncate())

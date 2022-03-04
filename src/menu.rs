@@ -2,7 +2,7 @@ use crate::common::{
     CurrentDay, DayEndReason, EndDayEvent, EnemyMorale, GameAudio, GameFonts, GameOverButton,
     GameSprites, GameState, MainMenuButton, NarrationViewed, OpeningNarration, Ui,
 };
-use bevy::{app::AppExit, prelude::*};
+use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_kira_audio::Audio;
 
@@ -59,7 +59,6 @@ pub fn button_main_menu(
     mut current_day: ResMut<CurrentDay>,
     audio: Res<GameAudio>,
     audio_player: Res<Audio>,
-    mut app_exit: EventWriter<AppExit>,
     mut narration_viewed: ResMut<NarrationViewed>,
 ) {
     for (interaction, mut color, button_type) in q_interaction.iter_mut() {
@@ -79,9 +78,6 @@ pub fn button_main_menu(
                     }
                     MainMenuButton::Credits => {
                         state.set(GameState::Credits).unwrap();
-                    }
-                    MainMenuButton::Exit => {
-                        app_exit.send(AppExit);
                     }
                 }
             }
