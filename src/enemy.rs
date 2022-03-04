@@ -292,12 +292,12 @@ pub fn despawn_enemies(
         let despawned = if health.current <= 0.0 {
             any_defeated = true;
             commands.entity(ent).despawn();
-            morale.0 -= 0.1;
+            morale.change -= 0.1;
             true
         } else if health.current < health.maximum && transform.translation.y <= -SCREEN_HEIGHT * 0.6
         {
             commands.entity(ent).despawn();
-            morale.0 += 0.25;
+            morale.change += 0.25;
             true
         } else {
             false

@@ -47,7 +47,10 @@ impl Plugin for GameSetup {
                 ..Default::default()
             })
             .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
-            .insert_resource(EnemyMorale(50.0))
+            .insert_resource(EnemyMorale {
+                current: 50.0,
+                change: 0.0,
+            })
             .insert_resource(WaveManager {
                 active_waves: 0,
                 max_waves: 4,

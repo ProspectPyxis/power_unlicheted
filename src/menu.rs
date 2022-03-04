@@ -25,13 +25,18 @@ and they will win.
 \nYou must let them hope - but never let them stop fearing.",
 ];
 
-const GAME_TIPS: [&str; 3] = [
+const GAME_TIPS_COUNT: usize = 5;
+const GAME_TIPS: [&str; GAME_TIPS_COUNT] = [
     "Your body can be killed, as long as your phylactery lives.
 Perhaps letting them \"kill\" you can give them some hope.",
     "Letting the soldiers flee with their lives can make them believe you're weak.
 Maybe one of your spells can assist with this...",
     "They want to believe they are making progress in destroying you.
-Showing you cannot be hurt by them could crush their motivation.",
+Showing you cannot be hurt by them could crush their morale.",
+    "They want to believe they are making progress in destroying you.
+You could make something easier for them to kill to motivate them.",
+    "Humanity is smart - they will catch on to your intents sooner or later.
+Morale will become harder to keep in check over time.",
 ];
 
 const BUTTON_NORMAL: Color = Color::rgb(0.15, 0.15, 0.15);
@@ -152,7 +157,7 @@ pub fn button_start_day(
         match *interaction {
             Interaction::Clicked => {
                 audio_player.play(audio.click.clone());
-                if morale.0 == 0.0 || morale.0 == 100.0 {
+                if morale.current == 0.0 || morale.current == 100.0 {
                     state.set(GameState::GameOver).unwrap();
                 } else {
                     current_day.0 += 1;
@@ -176,13 +181,22 @@ pub fn spawn_morale_status(
     current_day: Res<CurrentDay>,
     mut day_end_reader: EventReader<EndDayEvent>,
 ) {
-    if current_day.0 <= 1 {
-        morale.0 = morale.0.clamp(15.0, 85.0);
-    } else {
-        morale.0 = morale.0.clamp(0.0, 100.0);
+    let day_end = day_end_reader.iter().next();
+    if let Some(day_end) = day_end {
+        if let DayEndReason::PlayerDeath = day_end.reason {
+            morale.change = (morale.change + 15.0).max(10.0);
+        }
     }
+    // Setup morale values
+    if current_day.0 == 1 {
+        morale.current = (morale.current + morale.change).clamp(15.0, 85.0);
+    } else if current_day.0 > 0 {
+        morale.current =
+            (morale.current + (morale.change * current_day.0 as f32 / 4.0)).clamp(0.0, 100.0);
+    }
+    morale.change = 0.0;
 
-    let morale_text_prelude = if let Some(day_end) = day_end_reader.iter().next() {
+    let morale_text_prelude = if let Some(day_end) = day_end {
         match day_end.reason {
             DayEndReason::Timeout => {
                 "As the day closes, you take stock
@@ -201,33 +215,36 @@ but the army celebrates its victory.\n\n"
 
     let morale_text_end = if current_day.0 == 0 {
         "\nThe next army is about to arrive..."
-    } else if morale.0 == 0.0 || morale.0 == 100.0 {
+    } else if morale.current == 0.0 || morale.current == 100.0 {
         ""
-    } else if morale.0 >= 75.0 {
+    } else if morale.current >= 75.0 {
         "\nThey are beginning to grow brave.
 Perhaps you should be harsher on them
 and show them their place."
-    } else if morale.0 <= 25.0 {
+    } else if morale.current <= 25.0 {
         "\nThey grow hopeless by the day.
 Perhaps you should show them mercy - 
-allow them to hurt you and escape your wrath."
+allow them to hurt you, or escape your wrath."
     } else {
-        "\nThey hope, but they still fear.
-You should maintain the balance."
+        "\nThey have hope, but they still fear.
+You should maintain this balance."
     };
 
     let button_text = if current_day.0 == 0 {
         "Start Day"
-    } else if morale.0 == 0.0 || morale.0 == 100.0 {
+    } else if morale.current == 0.0 || morale.current == 100.0 {
         "Game Over"
     } else {
         "Next Day"
     };
 
-    let game_tip = if morale.0 == 0.0 || morale.0 == 100.0 {
+    let game_tip = if morale.current == 0.0 || morale.current == 100.0 {
         "".to_string()
     } else {
-        format!("\n\nTip: {}", GAME_TIPS[alea::u32_less_than(3) as usize])
+        format!(
+            "\n\nTip: {}",
+            GAME_TIPS[alea::u32_less_than(GAME_TIPS_COUNT as u32) as usize]
+        )
     };
 
     commands
@@ -265,7 +282,7 @@ You should maintain the balance."
                                 },
                             },
                             TextSection {
-                                value: format!("\n{:.1}%", morale.0),
+                                value: format!("\n{:.1}%", morale.current),
                                 style: TextStyle {
                                     font: fonts.main.clone(),
                                     font_size: 64.0,
@@ -352,7 +369,7 @@ pub fn button_game_over(
                 match *button_type {
                     GameOverButton::Restart => {
                         current_day.0 = 0;
-                        morale.0 = 50.0;
+                        morale.current = 50.0;
                         state.set(GameState::MoraleStatus).unwrap();
                     }
                     GameOverButton::Exit => {
@@ -379,7 +396,7 @@ pub fn spawn_game_over(
     morale: Res<EnemyMorale>,
     current_day: Res<CurrentDay>,
 ) {
-    let game_over_narration = if morale.0 == 100.0 {
+    let game_over_narration = if morale.current == 100.0 {
         "Recent victories have granted bravery to humanity.
 \nInvigorated, they begin truly pushing you back,
 giving you defeat after defeat.

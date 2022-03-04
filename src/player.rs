@@ -218,13 +218,12 @@ pub fn register_player_damage(
         for damage in damages.iter() {
             damaged = true;
             player.current -= damage.0;
-            morale.0 += damage.0 / 10.0;
+            morale.change += damage.0 / 10.0;
         }
         if damaged {
             audio_player.play(audio.player_hurt.clone());
         }
         if player.current <= 0.0 {
-            morale.0 += 25.0;
             day_end_writer.send(EndDayEvent {
                 reason: DayEndReason::PlayerDeath,
             });

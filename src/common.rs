@@ -220,7 +220,10 @@ pub struct LightningStrikeBolt {
 // Resources
 
 #[derive(Component)]
-pub struct EnemyMorale(pub f32);
+pub struct EnemyMorale {
+    pub current: f32,
+    pub change: f32,
+}
 
 #[derive(Component)]
 pub struct WaveManager {
