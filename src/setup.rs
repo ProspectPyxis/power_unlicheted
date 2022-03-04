@@ -6,8 +6,9 @@ use crate::{
         SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
-        check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
-        update_enemy, update_enemy_render,
+        check_enemy_player_collision, despawn_enemies, enemy_damage_player,
+        enemy_projectile_damage_player, spawn_enemy_wave, update_enemy, update_enemy_render,
+        update_enemy_shoot,
     },
     menu::{
         button_credits_back, button_game_over, button_shift_narration, button_start_day,
@@ -103,6 +104,7 @@ impl Plugin for GameSetup {
                     .with_system(update_enemy)
                     .with_system(update_timer)
                     .with_system(update_lightning_bolt)
+                    .with_system(update_enemy_shoot)
                     .label(Label::Movement),
             )
             .add_system_set(
@@ -118,6 +120,7 @@ impl Plugin for GameSetup {
                     .with_system(enemy_damage_player)
                     .with_system(register_player_damage)
                     .with_system(tick_attack_cooldowns)
+                    .with_system(enemy_projectile_damage_player)
                     .label(Label::HealthUpdate)
                     .after(Label::CollisionCheck),
             )

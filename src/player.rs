@@ -23,10 +23,11 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
         .insert(Player)
         .insert(RigidBody::KinematicPositionBased)
         .insert(CollisionShape::Sphere { radius: 24.0 })
-        .insert(CollisionLayers::new(
-            GamePhysicsLayer::Player,
-            GamePhysicsLayer::Enemy,
-        ))
+        .insert(
+            CollisionLayers::none()
+                .with_group(GamePhysicsLayer::Player)
+                .with_masks(&[GamePhysicsLayer::Enemy, GamePhysicsLayer::EnemyAttack]),
+        )
         .insert(Health::full(200.0))
         .insert(PlayerSpellData {
             selected: PlayerSpell::Fireball,
@@ -138,7 +139,7 @@ pub fn player_shoot(
                                     .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
                                     .insert(DamagesEnemy {
                                         damage: 2.0,
-                                        induces_fear: true,
+                                        induces_fear: false,
                                     })
                                     .with_children(|parent| {
                                         parent

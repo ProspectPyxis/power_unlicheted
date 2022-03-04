@@ -39,6 +39,10 @@ pub struct GameSprites {
     pub spell_icon_fear: Handle<Image>,
     #[asset(path = "sprites/soldier.png")]
     pub soldier: Handle<Image>,
+    #[asset(path = "sprites/archer.png")]
+    pub archer: Handle<Image>,
+    #[asset(path = "sprites/arrow.png")]
+    pub arrow: Handle<Image>,
     #[asset(path = "sprites/grass.png")]
     pub grass: Handle<Image>,
     #[asset(path = "sprites/bevy.png")]
@@ -95,6 +99,7 @@ pub struct BlockableProjectile;
 
 pub enum EnemyAI {
     ChasesPlayer { speed: f32 },
+    Archer { target_y: f32 },
     Afraid { speed: f32 },
 }
 
@@ -104,6 +109,12 @@ pub struct Enemy {
     pub wave_core: Option<Entity>,
     pub fear_threshold: f32,
 }
+
+#[derive(Component)]
+pub struct EnemyShoots(pub Timer);
+
+#[derive(Component)]
+pub struct EnemyProjectile;
 
 #[derive(Component)]
 pub struct WaveCore {
@@ -270,6 +281,7 @@ pub enum GamePhysicsLayer {
     Player,
     PlayerAttack,
     Enemy,
+    EnemyAttack,
 }
 
 #[derive(SystemLabel, Debug, Hash, PartialEq, Eq, Clone)]

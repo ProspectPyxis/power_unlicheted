@@ -49,6 +49,11 @@ pub fn check_projectile_collision(
                             enemy.ai = EnemyAI::Afraid { speed };
                         }
                     }
+                    _ => {
+                        if damage.induces_fear || health.current <= enemy.fear_threshold {
+                            enemy.ai = EnemyAI::Afraid { speed: 120.0 };
+                        }
+                    }
                 }
             }
         }
@@ -95,7 +100,7 @@ pub fn update_lightning_bolt(
                 ))
                 .insert(DamagesEnemy {
                     damage: 3.0,
-                    induces_fear: true,
+                    induces_fear: false,
                 })
                 .insert(DespawnTimer(Timer::from_seconds(0.25, false)))
                 .with_children(|parent| {
@@ -111,7 +116,7 @@ pub fn update_lightning_bolt(
                         ))
                         .insert(DamagesEnemy {
                             damage: 2.0,
-                            induces_fear: true,
+                            induces_fear: false,
                         });
                 });
 
