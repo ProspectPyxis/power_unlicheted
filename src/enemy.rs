@@ -292,6 +292,7 @@ pub fn despawn_enemies(
     for (ent, health, transform, enemy) in q_enemies.iter() {
         let despawned = if health.current <= 0.0 {
             commands.entity(ent).despawn();
+            morale.enemies_killed += 1;
             morale.change -= 0.05;
             true
         } else if let EnemyAI::Afraid { speed: _ } = enemy.ai {

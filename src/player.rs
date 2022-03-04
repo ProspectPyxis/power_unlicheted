@@ -1,8 +1,8 @@
 use crate::common::{
     get_cursor_position, BlockableProjectile, ChangeSpellEvent, CurrentDay, DamagePlayerEvent,
-    DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent, GameAudio, GameFonts, GamePhysicsLayer,
-    GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt, MainCamera, Player,
-    PlayerSpell, PlayerSpellData, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
+    DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent, EnemyMorale, GameAudio, GameFonts,
+    GamePhysicsLayer, GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt,
+    MainCamera, Player, PlayerSpell, PlayerSpellData, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use bevy_kira_audio::Audio;
@@ -31,6 +31,8 @@ pub fn spawn_player(mut commands: Commands, sprites: Res<GameSprites>) {
         .insert(PlayerSpellData {
             selected: PlayerSpell::Fireball,
             cooldowns: SpellCooldowns::default(),
+            no_shoot_delay: Timer::from_seconds(1.0, false),
+            no_shoot_penalty: Timer::from_seconds(0.1, true),
         });
 }
 
@@ -99,10 +101,12 @@ pub fn player_shoot(
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mouse_input: Res<Input<MouseButton>>,
     audio_player: Res<Audio>,
+    time: Res<Time>,
+    mut morale: ResMut<EnemyMorale>,
 ) {
-    if mouse_input.pressed(MouseButton::Left) {
-        if let Some(cursor_pos) = get_cursor_position(wnds, q_camera) {
-            if let Some((player_t, mut spell_data)) = q_player.iter_mut().next() {
+    if let Some((player_t, mut spell_data)) = q_player.iter_mut().next() {
+        if mouse_input.pressed(MouseButton::Left) {
+            if let Some(cursor_pos) = get_cursor_position(wnds, q_camera) {
                 match spell_data.selected {
                     PlayerSpell::Fireball => {
                         if spell_data.cooldowns.fireball.finished() {
@@ -173,6 +177,7 @@ pub fn player_shoot(
                                     },
                                     ..Default::default()
                                 })
+                                .insert(RigidBody::Sensor)
                                 .insert(LightningStrikeBolt {
                                     end_y: cursor_pos.y,
                                 });
@@ -208,7 +213,7 @@ pub fn player_shoot(
                                     (cursor_pos - player_t.translation.truncate())
                                         .extend(0.0)
                                         .normalize()
-                                        * 180.0,
+                                        * 240.0,
                                 ))
                                 .insert(CollisionLayers::new(
                                     GamePhysicsLayer::PlayerAttack,
@@ -219,10 +224,23 @@ pub fn player_shoot(
                                     induces_fear: true,
                                 })
                                 .insert(DespawnTimer(Timer::from_seconds(4.0, false)));
+                            audio_player.play(audio.fear_wave.clone());
                             spell_data.cooldowns.fear_wave.reset();
                         }
                     }
                 }
+            }
+            spell_data.no_shoot_delay.reset();
+            spell_data.no_shoot_penalty.reset();
+        } else {
+            spell_data.no_shoot_delay.tick(time.delta());
+            if spell_data.no_shoot_delay.finished()
+                && spell_data
+                    .no_shoot_penalty
+                    .tick(time.delta())
+                    .just_finished()
+            {
+                morale.change -= 0.1;
             }
         }
     }

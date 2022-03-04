@@ -59,6 +59,8 @@ pub struct GameAudio {
     pub fireball: Handle<AudioSource>,
     #[asset(path = "sounds/lightning_explosion.wav")]
     pub lightning_explosion: Handle<AudioSource>,
+    #[asset(path = "sounds/fear_wave.wav")]
+    pub fear_wave: Handle<AudioSource>,
     #[asset(path = "sounds/enemy_hurt.wav")]
     pub enemy_hurt: Handle<AudioSource>,
     #[asset(path = "sounds/player_hurt.wav")]
@@ -223,6 +225,8 @@ impl SpellCooldowns {
 pub struct PlayerSpellData {
     pub selected: PlayerSpell,
     pub cooldowns: SpellCooldowns,
+    pub no_shoot_delay: Timer,
+    pub no_shoot_penalty: Timer,
 }
 
 #[derive(Component)]
@@ -236,6 +240,7 @@ pub struct LightningStrikeBolt {
 pub struct EnemyMorale {
     pub current: f32,
     pub change: f32,
+    pub enemies_killed: u32,
 }
 
 #[derive(Component)]

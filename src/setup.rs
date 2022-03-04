@@ -1,9 +1,9 @@
 use crate::{
     common::{
         animate_sprites, check_despawn, check_invis, ChangeSpellEvent, CurrentDay, CurrentTime,
-        DamagePlayerEvent, DamagesEnemy, DayEndReason, EndDayEvent, Enemy, EnemyMorale, GameAudio,
-        GameFonts, GameSprites, GameState, InGameUI, Label, MainCamera, Player, Ui, WaveCore,
-        WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+        DamagePlayerEvent, DamagesEnemy, DayEndReason, EndDayEvent, EnemyMorale, GameAudio,
+        GameFonts, GameSprites, GameState, InGameUI, Label, MainCamera, Ui, WaveCore, WaveManager,
+        SCREEN_HEIGHT, SCREEN_WIDTH,
     },
     enemy::{
         check_enemy_player_collision, despawn_enemies, enemy_damage_player, spawn_enemy_wave,
@@ -50,10 +50,11 @@ impl Plugin for GameSetup {
             .insert_resource(EnemyMorale {
                 current: 50.0,
                 change: 0.0,
+                enemies_killed: 0,
             })
             .insert_resource(WaveManager {
                 active_waves: 0,
-                max_waves: 4,
+                max_waves: 5,
                 wave_timer: Timer::from_seconds(3.0, false),
             })
             .insert_resource(CurrentDay {
@@ -291,11 +292,10 @@ fn despawn_all(
         (
             Or<(
                 With<WaveCore>,
-                With<Enemy>,
-                With<Player>,
                 With<Map>,
                 With<InGameUI>,
                 With<DamagesEnemy>,
+                With<RigidBody>,
             )>,
             Without<Parent>,
         ),

@@ -25,7 +25,7 @@ and they will win.
 \nYou must let them hope - but never let them stop fearing.",
 ];
 
-const GAME_TIPS_COUNT: usize = 6;
+const GAME_TIPS_COUNT: usize = 7;
 const GAME_TIPS: [&str; GAME_TIPS_COUNT] = [
     "Your body can be killed, as long as your phylactery lives.
 Perhaps letting them \"kill\" you can give them some hope.",
@@ -34,7 +34,9 @@ Maybe one of your spells can assist with this...",
     "They want to believe they are making progress in destroying you.
 Showing you cannot be hurt by them could crush their morale.",
     "They want to believe they are making progress in destroying you.
-You could make something easier for them to kill to motivate them.",
+If you want to give them hope, let them hurt you.",
+    "To them, any progress is better than no progress.
+They will celebrate over killing even your weak minions.",
     "Humanity is smart - they will catch on to your intents sooner or later.
 Morale will become harder to keep in check over time.",
     "You need to put up at least somewhat of a fight.
@@ -185,20 +187,19 @@ pub fn spawn_morale_status(
     mut day_end_reader: EventReader<EndDayEvent>,
 ) {
     let day_end = day_end_reader.iter().next();
+
+    // Setup morale values
     if let Some(day_end) = day_end {
-        if let DayEndReason::PlayerDeath = day_end.reason {
+        if morale.enemies_killed < 40 {
+            morale.change = (morale.change - 15.0).min(-15.0);
+        } else if let DayEndReason::PlayerDeath = day_end.reason {
             morale.change = (morale.change + 25.0).max(10.0);
         } else if current_day.player_damaged < 3.0 {
-            morale.change = (if morale.change >= 0.0 {
-                morale.change / 2.0
-            } else {
-                morale.change
-            }) - 15.0;
+            morale.change -= 10.0;
         } else {
             morale.change += current_day.player_damaged / 10.0;
         }
     }
-    // Setup morale values
     if current_day.day == 1 {
         morale.current = (morale.current + morale.change).clamp(15.0, 85.0);
     } else if current_day.day > 0 {
@@ -206,20 +207,30 @@ pub fn spawn_morale_status(
             (morale.current + morale.change + (morale.change * (current_day.day - 1) as f32 / 4.0))
                 .clamp(0.0, 100.0);
     }
-    morale.change = 0.0;
 
     let morale_text_prelude = if let Some(day_end) = day_end {
-        if current_day.player_damaged < 3.0 {
-            "You have shown them your strength today - 
+        match day_end.reason {
+            DayEndReason::Timeout => {
+                if morale.enemies_killed < 40 {
+                    "As the soldiers' adrenaline fades,
+they realize they barely lost anybody.
+Considering your immense power,
+this turn of events greatly confuses them.\n\n"
+                } else if current_day.player_damaged < 3.0 {
+                    "You have shown them your strength today - 
 the army barely hurt you at all.
 They despair at their powerlessness.\n\n"
-        } else {
-            match day_end.reason {
-                DayEndReason::Timeout => {
+                } else {
                     "As the day closes, you take stock
 of your action's effects.\n\n"
                 }
-                DayEndReason::PlayerDeath => {
+            }
+            DayEndReason::PlayerDeath => {
+                if morale.enemies_killed < 40 {
+                    "They have defeated you easily - too easily.
+The army quickly catches onto your feint,
+and they become more hesitant to attack.\n\n"
+                } else {
                     "Whether by carelessness or intentional feint,
 you have fallen in battle today.
 Your phylactery keeps you alive,
@@ -264,6 +275,9 @@ You should maintain this balance."
             GAME_TIPS[alea::u32_less_than(GAME_TIPS_COUNT as u32) as usize]
         )
     };
+
+    morale.change = 0.0;
+    morale.enemies_killed = 0;
 
     commands
         .spawn_bundle(NodeBundle {
