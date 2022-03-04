@@ -29,10 +29,14 @@ pub struct GameSprites {
     #[asset(texture_atlas(tile_size_x = 64.0, tile_size_y = 64.0, columns = 1, rows = 4))]
     #[asset(path = "sprites/lightning_explosion.png")]
     pub lightning_explosion: Handle<TextureAtlas>,
+    #[asset(path = "sprites/fear_wave.png")]
+    pub fear_wave: Handle<Image>,
     #[asset(path = "sprites/spell_icon_fireball.png")]
     pub spell_icon_fireball: Handle<Image>,
     #[asset(path = "sprites/spell_icon_lightning.png")]
     pub spell_icon_lightning: Handle<Image>,
+    #[asset(path = "sprites/spell_icon_fear.png")]
+    pub spell_icon_fear: Handle<Image>,
     #[asset(path = "sprites/soldier.png")]
     pub soldier: Handle<Image>,
     #[asset(path = "sprites/grass.png")]
@@ -55,8 +59,8 @@ pub struct GameAudio {
     pub fireball: Handle<AudioSource>,
     #[asset(path = "sounds/lightning_explosion.wav")]
     pub lightning_explosion: Handle<AudioSource>,
-    #[asset(path = "sounds/enemy_kill.wav")]
-    pub enemy_kill: Handle<AudioSource>,
+    #[asset(path = "sounds/enemy_hurt.wav")]
+    pub enemy_hurt: Handle<AudioSource>,
     #[asset(path = "sounds/player_hurt.wav")]
     pub player_hurt: Handle<AudioSource>,
 }
@@ -85,16 +89,18 @@ pub struct MainCamera;
 pub struct Player;
 
 #[derive(Component)]
-pub struct Projectile;
+pub struct BlockableProjectile;
 
 pub enum EnemyAI {
     ChasesPlayer { speed: f32 },
+    Afraid { speed: f32 },
 }
 
 #[derive(Component)]
 pub struct Enemy {
     pub ai: EnemyAI,
     pub wave_core: Option<Entity>,
+    pub fear_threshold: f32,
 }
 
 #[derive(Component)]
@@ -142,6 +148,7 @@ pub struct DamagesPlayer {
 #[derive(Component)]
 pub struct DamagesEnemy {
     pub damage: f32,
+    pub induces_fear: bool,
 }
 
 #[derive(Component)]
@@ -167,20 +174,23 @@ pub enum GameOverButton {
 pub enum PlayerSpell {
     Fireball,
     LightningStrike,
+    FearWave,
 }
 
 impl PlayerSpell {
     pub fn next(&self) -> Self {
         match self {
             PlayerSpell::Fireball => PlayerSpell::LightningStrike,
-            PlayerSpell::LightningStrike => PlayerSpell::Fireball,
+            PlayerSpell::LightningStrike => PlayerSpell::FearWave,
+            PlayerSpell::FearWave => PlayerSpell::Fireball,
         }
     }
 
     pub fn previous(&self) -> Self {
         match self {
-            PlayerSpell::Fireball => PlayerSpell::LightningStrike,
+            PlayerSpell::Fireball => PlayerSpell::FearWave,
             PlayerSpell::LightningStrike => PlayerSpell::Fireball,
+            PlayerSpell::FearWave => PlayerSpell::LightningStrike,
         }
     }
 }
@@ -188,13 +198,15 @@ impl PlayerSpell {
 pub struct SpellCooldowns {
     pub fireball: Timer,
     pub lightning_strike: Timer,
+    pub fear_wave: Timer,
 }
 
 impl Default for SpellCooldowns {
     fn default() -> Self {
         Self {
-            fireball: Timer::from_seconds(0.2, false),
-            lightning_strike: Timer::from_seconds(0.7, false),
+            fireball: Timer::from_seconds(0.3, false),
+            lightning_strike: Timer::from_seconds(0.8, false),
+            fear_wave: Timer::from_seconds(0.7, false),
         }
     }
 }
@@ -203,6 +215,7 @@ impl SpellCooldowns {
     pub fn tick_all(&mut self, delta: Duration) {
         self.fireball.tick(delta);
         self.lightning_strike.tick(delta);
+        self.fear_wave.tick(delta);
     }
 }
 
@@ -269,6 +282,8 @@ pub trait Vec3Utils {
     fn rotate_2d(self, angle: f32) -> Self;
 
     fn line_overlaps_circle(self, velocity: Vec3, ahead_len: f32, c_pos: Vec2, c_r: f32) -> bool;
+
+    fn angle_between_points(self, other: Vec3) -> f32;
 }
 
 impl Vec3Utils for Vec3 {
@@ -291,6 +306,12 @@ impl Vec3Utils for Vec3 {
             }
         }
         false
+    }
+
+    fn angle_between_points(self, other: Vec3) -> f32 {
+        let delta_x = self.x - other.x;
+        let delta_y = self.y - other.y;
+        delta_y.atan2(delta_x)
     }
 }
 

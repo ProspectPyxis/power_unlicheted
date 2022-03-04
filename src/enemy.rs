@@ -1,9 +1,8 @@
 use crate::common::{
-    DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GameAudio, GamePhysicsLayer,
-    GameSprites, Health, Player, Vec3Utils, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
+    DamagePlayerEvent, DamagesPlayer, Enemy, EnemyAI, EnemyMorale, GamePhysicsLayer, GameSprites,
+    Health, Player, Vec3Utils, WaveCore, WaveManager, SCREEN_HEIGHT, SCREEN_WIDTH,
 };
 use bevy::prelude::*;
-use bevy_kira_audio::Audio;
 use heron::prelude::*;
 use itertools::Itertools;
 
@@ -55,6 +54,7 @@ pub fn spawn_enemy_square_wave(commands: &mut Commands, sprites: Res<GameSprites
             .insert(Enemy {
                 ai: EnemyAI::ChasesPlayer { speed: 120.0 },
                 wave_core: Some(wave_core),
+                fear_threshold: 2.5,
             })
             .insert(RigidBody::KinematicVelocityBased)
             .insert(CollisionShape::Sphere { radius: 10.0 })
@@ -100,6 +100,7 @@ pub fn spawn_enemy_line_wave(commands: &mut Commands, sprites: Res<GameSprites>)
             .insert(Enemy {
                 ai: EnemyAI::ChasesPlayer { speed: 120.0 },
                 wave_core: Some(wave_core),
+                fear_threshold: 2.5,
             })
             .insert(RigidBody::KinematicVelocityBased)
             .insert(CollisionShape::Sphere { radius: 10.0 })
@@ -120,77 +121,75 @@ pub fn spawn_enemy_line_wave(commands: &mut Commands, sprites: Res<GameSprites>)
 }
 
 pub fn update_enemy(
-    mut q_enemies: Query<(Entity, &Enemy, &Transform, &Health, &mut Velocity), Without<Player>>,
+    mut q_enemies: Query<(Entity, &Enemy, &Transform, &mut Velocity), Without<Player>>,
     q_enemies_other: Query<(Entity, &Transform), With<Enemy>>,
     q_player: Query<&Transform, With<Player>>,
 ) {
     if let Some(player) = q_player.iter().next() {
-        for (ent, enemy, transform, health, mut velocity) in q_enemies.iter_mut() {
+        for (ent, enemy, transform, mut velocity) in q_enemies.iter_mut() {
             let current_pos = transform.translation;
             match enemy.ai {
                 EnemyAI::ChasesPlayer { speed } => {
-                    if health.current < health.maximum {
-                        let desired_velocity = (Vec3::Y * ((-SCREEN_HEIGHT * 0.7) - current_pos.y))
-                            .normalize()
-                            * speed
-                            * 3.0;
-                        let seek_force = desired_velocity - velocity.linear;
+                    // Seeking and arrival
+                    let desired_velocity =
+                        (player.translation.truncate() - current_pos.truncate()).extend(0.0);
+                    let distance = desired_velocity.length();
+                    let desired_velocity = if distance < 32.0 {
+                        Vec3::ZERO
+                    } else {
+                        desired_velocity.normalize() * speed
+                    };
+                    let seek_force = desired_velocity - velocity.linear;
 
-                        let desired_velocity = (current_pos.truncate()
-                            - player.translation.truncate())
+                    // Avoiding others
+                    let ahead_len = velocity.linear.length() / speed;
+                    let nearest_obstacle = q_enemies_other
+                        .iter()
+                        .filter(|(e, t)| {
+                            *e != ent
+                                && current_pos.distance(t.translation) <= 40.0
+                                && current_pos.line_overlaps_circle(
+                                    velocity.linear,
+                                    ahead_len,
+                                    t.translation.truncate(),
+                                    20.0,
+                                )
+                        })
+                        .fold(None, |accum, (_, t)| {
+                            if accum.is_none()
+                                || current_pos.distance(t.translation)
+                                    < current_pos.distance(accum.unwrap())
+                            {
+                                Some(t.translation)
+                            } else {
+                                accum
+                            }
+                        });
+                    let avoidance = if let Some(obstacle) = nearest_obstacle {
+                        let ahead = current_pos + velocity.linear.normalize() * ahead_len;
+                        Vec3::new(ahead.x - obstacle.x, ahead.y - obstacle.y, 0.0).normalize()
+                            * speed
+                    } else {
+                        Vec3::ZERO
+                    };
+                    let steering = (seek_force + avoidance).clamp_length_max(6.0);
+                    velocity.linear = (velocity.linear + steering).clamp_length_max(speed);
+                }
+                EnemyAI::Afraid { speed } => {
+                    let desired_velocity = (Vec3::Y * ((-SCREEN_HEIGHT * 0.7) - current_pos.y))
+                        .normalize()
+                        * speed
+                        * 3.0;
+                    let seek_force = desired_velocity - velocity.linear;
+
+                    let desired_velocity = (current_pos.truncate() - player.translation.truncate())
                         .extend(0.0)
                         .normalize()
-                            * speed;
-                        let flee_force = desired_velocity - velocity.linear;
+                        * speed;
+                    let flee_force = desired_velocity - velocity.linear;
 
-                        let steering = seek_force + flee_force;
-                        velocity.linear = (velocity.linear + steering).clamp_length_max(speed);
-                    } else {
-                        // Seeking and arrival
-                        let desired_velocity =
-                            (player.translation.truncate() - current_pos.truncate()).extend(0.0);
-                        let distance = desired_velocity.length();
-                        let desired_velocity = if distance < 32.0 {
-                            Vec3::ZERO
-                        } else {
-                            desired_velocity.normalize() * speed
-                        };
-                        let seek_force = desired_velocity - velocity.linear;
-
-                        // Avoiding others
-                        let ahead_len = velocity.linear.length() / speed;
-                        let nearest_obstacle = q_enemies_other
-                            .iter()
-                            .filter(|(e, t)| {
-                                *e != ent
-                                    && current_pos.distance(t.translation) <= 40.0
-                                    && current_pos.line_overlaps_circle(
-                                        velocity.linear,
-                                        ahead_len,
-                                        t.translation.truncate(),
-                                        20.0,
-                                    )
-                            })
-                            .fold(None, |accum, (_, t)| {
-                                if accum.is_none()
-                                    || current_pos.distance(t.translation)
-                                        < current_pos.distance(accum.unwrap())
-                                {
-                                    Some(t.translation)
-                                } else {
-                                    accum
-                                }
-                            });
-                        let avoidance = if let Some(obstacle) = nearest_obstacle {
-                            let ahead = current_pos + velocity.linear.normalize() * ahead_len;
-                            Vec3::new(ahead.x - obstacle.x, ahead.y - obstacle.y, 0.0).normalize()
-                                * speed
-                        } else {
-                            Vec3::ZERO
-                        };
-                        let steering = (seek_force + avoidance).clamp_length_max(6.0);
-                        velocity.linear = (velocity.linear + steering).clamp_length_max(speed);
-                    }
+                    let steering = seek_force + flee_force;
+                    velocity.linear = (velocity.linear + steering).clamp_length_max(speed);
                 }
             }
         }
@@ -205,25 +204,28 @@ pub fn update_enemy_render(
         for (enemy, transform, health, mut sprite) in q_enemies.iter_mut() {
             match enemy.ai {
                 EnemyAI::ChasesPlayer { speed: _ } => {
-                    if health.current < health.maximum {
-                        if transform.translation.x > player.translation.x {
-                            sprite.flip_x = false;
-                        } else {
-                            sprite.flip_x = true;
-                        }
-                    } else if transform.translation.x > player.translation.x {
+                    if transform.translation.x > player.translation.x {
                         sprite.flip_x = true;
                     } else {
                         sprite.flip_x = false;
                     }
                 }
-            }
-            if health.current < health.maximum {
+                EnemyAI::Afraid { speed: _ } => {
+                    if transform.translation.x > player.translation.x {
+                        sprite.flip_x = false;
+                    } else {
+                        sprite.flip_x = true;
+                    }
+                }
+            };
+            if health.current < enemy.fear_threshold {
                 sprite.color = Color::rgb(
                     1.0,
-                    0.5 + (health.current.max(0.0) / health.maximum) / 2.0,
-                    0.5 + (health.current.max(0.0) / health.maximum) / 2.0,
+                    0.25 + (health.current.max(0.0) / health.maximum) / 2.0,
+                    0.25 + (health.current.max(0.0) / health.maximum) / 2.0,
                 );
+            } else if let EnemyAI::Afraid { speed: _ } = enemy.ai {
+                sprite.color = Color::rgb(1.0, 0.5, 1.0);
             }
         }
     }
@@ -286,21 +288,24 @@ pub fn despawn_enemies(
     mut q_wave_cores: Query<(Entity, &mut WaveCore)>,
     mut morale: ResMut<EnemyMorale>,
     mut wave_manager: ResMut<WaveManager>,
-    audio: Res<GameAudio>,
-    audio_player: Res<Audio>,
 ) {
-    let mut any_defeated = false;
     for (ent, health, transform, enemy) in q_enemies.iter() {
         let despawned = if health.current <= 0.0 {
-            any_defeated = true;
             commands.entity(ent).despawn();
-            morale.change -= 0.1;
+            morale.change -= 0.05;
             true
-        } else if health.current < health.maximum && transform.translation.y <= -SCREEN_HEIGHT * 0.6
-        {
-            commands.entity(ent).despawn();
-            morale.change += 0.25;
-            true
+        } else if let EnemyAI::Afraid { speed: _ } = enemy.ai {
+            if transform.translation.y <= -SCREEN_HEIGHT * 0.6 {
+                if health.current > enemy.fear_threshold {
+                    morale.change += 0.05;
+                } else {
+                    morale.change += 0.15;
+                }
+                commands.entity(ent).despawn();
+                true
+            } else {
+                false
+            }
         } else {
             false
         };
@@ -311,9 +316,6 @@ pub fn despawn_enemies(
                 }
             }
         }
-    }
-    if any_defeated {
-        audio_player.play(audio.enemy_kill.clone());
     }
     for (ent, wave_core) in q_wave_cores.iter_mut() {
         if wave_core.remaining == 0 {

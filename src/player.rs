@@ -1,8 +1,8 @@
 use crate::common::{
-    get_cursor_position, ChangeSpellEvent, CurrentDay, DamagePlayerEvent, DamagesEnemy,
-    DayEndReason, DespawnTimer, EndDayEvent, EnemyMorale, GameAudio, GameFonts, GamePhysicsLayer,
+    get_cursor_position, BlockableProjectile, ChangeSpellEvent, CurrentDay, DamagePlayerEvent,
+    DamagesEnemy, DayEndReason, DespawnTimer, EndDayEvent, GameAudio, GameFonts, GamePhysicsLayer,
     GameSprites, GameState, Health, InGameUI, InvisTimer, LightningStrikeBolt, MainCamera, Player,
-    PlayerSpell, PlayerSpellData, Projectile, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
+    PlayerSpell, PlayerSpellData, SpellCooldowns, Ui, Vec3Utils, SCREEN_HEIGHT,
 };
 use bevy::{input::keyboard::KeyCode, prelude::*};
 use bevy_kira_audio::Audio;
@@ -117,7 +117,7 @@ pub fn player_shoot(
                                         },
                                         ..Default::default()
                                     })
-                                    .insert(Projectile)
+                                    .insert(BlockableProjectile)
                                     .insert(RigidBody::KinematicVelocityBased)
                                     .insert(Velocity::from_linear(
                                         (cursor_pos - player_t.translation.truncate())
@@ -132,7 +132,10 @@ pub fn player_shoot(
                                         GamePhysicsLayer::Enemy,
                                     ))
                                     .insert(DespawnTimer(Timer::from_seconds(1.5, false)))
-                                    .insert(DamagesEnemy { damage: 2.0 })
+                                    .insert(DamagesEnemy {
+                                        damage: 2.0,
+                                        induces_fear: true,
+                                    })
                                     .with_children(|parent| {
                                         parent
                                             .spawn()
@@ -144,7 +147,10 @@ pub fn player_shoot(
                                                 GamePhysicsLayer::PlayerAttack,
                                                 GamePhysicsLayer::Enemy,
                                             ))
-                                            .insert(DamagesEnemy { damage: 1.0 });
+                                            .insert(DamagesEnemy {
+                                                damage: 1.0,
+                                                induces_fear: true,
+                                            });
                                     });
                             }
                             audio_player.play(audio.fireball.clone());
@@ -171,6 +177,49 @@ pub fn player_shoot(
                                     end_y: cursor_pos.y,
                                 });
                             spell_data.cooldowns.lightning_strike.reset();
+                        }
+                    }
+                    PlayerSpell::FearWave => {
+                        if spell_data.cooldowns.fear_wave.finished() {
+                            commands
+                                .spawn_bundle(SpriteBundle {
+                                    texture: sprites.fear_wave.clone(),
+                                    sprite: Sprite {
+                                        color: Color::rgba(1.0, 1.0, 1.0, 0.3),
+                                        ..Default::default()
+                                    },
+                                    transform: Transform {
+                                        translation: player_t.translation,
+                                        scale: Vec3::new(2.0, 2.0, 0.0),
+                                        rotation: Quat::from_rotation_z(
+                                            cursor_pos
+                                                .extend(0.0)
+                                                .angle_between_points(player_t.translation),
+                                        ),
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(RigidBody::KinematicVelocityBased)
+                                .insert(CollisionShape::Cuboid {
+                                    half_extends: Vec3::new(16.0, 64.0, 0.0),
+                                    border_radius: None,
+                                })
+                                .insert(Velocity::from_linear(
+                                    (cursor_pos - player_t.translation.truncate())
+                                        .extend(0.0)
+                                        .normalize()
+                                        * 180.0,
+                                ))
+                                .insert(CollisionLayers::new(
+                                    GamePhysicsLayer::PlayerAttack,
+                                    GamePhysicsLayer::Enemy,
+                                ))
+                                .insert(DamagesEnemy {
+                                    damage: 0.2,
+                                    induces_fear: true,
+                                })
+                                .insert(DespawnTimer(Timer::from_seconds(4.0, false)));
+                            spell_data.cooldowns.fear_wave.reset();
                         }
                     }
                 }
@@ -245,7 +294,9 @@ pub fn update_health_bar(
                 (health.current / health.maximum).max(0.0) * 100.0,
                 12.0,
             ));
-            if health.current <= health.maximum * 0.25 {
+            if health.current >= health.maximum - 3.0 {
+                sprite.color = Color::CYAN;
+            } else if health.current <= health.maximum * 0.25 {
                 sprite.color = Color::RED;
             } else {
                 sprite.color = Color::GREEN;
@@ -284,6 +335,7 @@ pub fn update_spell_display(
             *texture.into_inner() = match spell.0 {
                 PlayerSpell::Fireball => sprites.spell_icon_fireball.clone(),
                 PlayerSpell::LightningStrike => sprites.spell_icon_lightning.clone(),
+                PlayerSpell::FearWave => sprites.spell_icon_fear.clone(),
             };
             timer.0.reset();
             visibility.is_visible = true;
@@ -318,7 +370,8 @@ pub fn display_player_controls(
                 parent.spawn_bundle(TextBundle {
                     text: Text {
                         sections: vec![TextSection {
-                            value: "WASD: Move, LMB (Hold): Attack, QE: Change Spells".to_string(),
+                            value: "WASD: Move, LMB (Click/Hold): Attack, QE: Change Spells"
+                                .to_string(),
                             style: TextStyle {
                                 font: fonts.main.clone(),
                                 font_size: 32.0,

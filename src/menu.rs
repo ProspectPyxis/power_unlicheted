@@ -25,7 +25,7 @@ and they will win.
 \nYou must let them hope - but never let them stop fearing.",
 ];
 
-const GAME_TIPS_COUNT: usize = 5;
+const GAME_TIPS_COUNT: usize = 6;
 const GAME_TIPS: [&str; GAME_TIPS_COUNT] = [
     "Your body can be killed, as long as your phylactery lives.
 Perhaps letting them \"kill\" you can give them some hope.",
@@ -37,6 +37,8 @@ Showing you cannot be hurt by them could crush their morale.",
 You could make something easier for them to kill to motivate them.",
     "Humanity is smart - they will catch on to your intents sooner or later.
 Morale will become harder to keep in check over time.",
+    "You need to put up at least somewhat of a fight.
+Hold back too much, and they will realize your manipulations.",
 ];
 
 const BUTTON_NORMAL: Color = Color::rgb(0.15, 0.15, 0.15);
@@ -201,7 +203,8 @@ pub fn spawn_morale_status(
         morale.current = (morale.current + morale.change).clamp(15.0, 85.0);
     } else if current_day.day > 0 {
         morale.current =
-            (morale.current + (morale.change * current_day.day as f32 / 4.0)).clamp(0.0, 100.0);
+            (morale.current + morale.change + (morale.change * (current_day.day - 1) as f32 / 4.0))
+                .clamp(0.0, 100.0);
     }
     morale.change = 0.0;
 

@@ -1,6 +1,6 @@
 use crate::common::{
-    Animated, DamagesEnemy, DespawnTimer, Enemy, GameAudio, GamePhysicsLayer, GameSprites, Health,
-    LightningStrikeBolt, SCREEN_HEIGHT,
+    Animated, DamagesEnemy, DespawnTimer, Enemy, EnemyAI, GameAudio, GamePhysicsLayer, GameSprites,
+    Health, LightningStrikeBolt, SCREEN_HEIGHT,
 };
 use bevy::prelude::*;
 use bevy_kira_audio::Audio;
@@ -8,8 +8,10 @@ use heron::prelude::*;
 
 pub fn check_projectile_collision(
     mut collision_events: EventReader<CollisionEvent>,
-    mut q_enemies: Query<&mut Health, With<Enemy>>,
+    mut q_enemies: Query<(&mut Health, &mut Enemy)>,
     q_damages: Query<&DamagesEnemy>,
+    audio: Res<GameAudio>,
+    audio_player: Res<Audio>,
 ) {
     fn is_projectile(layers: CollisionLayers) -> bool {
         layers.contains_group(GamePhysicsLayer::PlayerAttack)
@@ -20,6 +22,7 @@ pub fn check_projectile_collision(
             && !layers.contains_group(GamePhysicsLayer::PlayerAttack)
     }
 
+    let mut damage_dealt = false;
     for (e_enemy, e_damager) in collision_events
         .iter()
         .filter(|e| e.is_started())
@@ -35,11 +38,23 @@ pub fn check_projectile_collision(
             }
         })
     {
-        if let Ok(mut enemy) = q_enemies.get_mut(e_enemy) {
+        if let Ok((mut health, mut enemy)) = q_enemies.get_mut(e_enemy) {
             if let Ok(damage) = q_damages.get(e_damager) {
-                enemy.current -= damage.damage;
+                damage_dealt = true;
+                health.current -= damage.damage;
+                match enemy.ai {
+                    EnemyAI::Afraid { speed: _ } => (),
+                    EnemyAI::ChasesPlayer { speed } => {
+                        if damage.induces_fear || health.current <= enemy.fear_threshold {
+                            enemy.ai = EnemyAI::Afraid { speed };
+                        }
+                    }
+                }
             }
         }
+    }
+    if damage_dealt {
+        audio_player.play(audio.enemy_hurt.clone());
     }
 }
 
@@ -78,7 +93,10 @@ pub fn update_lightning_bolt(
                     GamePhysicsLayer::PlayerAttack,
                     GamePhysicsLayer::Enemy,
                 ))
-                .insert(DamagesEnemy { damage: 3.0 })
+                .insert(DamagesEnemy {
+                    damage: 3.0,
+                    induces_fear: true,
+                })
                 .insert(DespawnTimer(Timer::from_seconds(0.25, false)))
                 .with_children(|parent| {
                     parent
@@ -91,7 +109,10 @@ pub fn update_lightning_bolt(
                             GamePhysicsLayer::PlayerAttack,
                             GamePhysicsLayer::Enemy,
                         ))
-                        .insert(DamagesEnemy { damage: 2.0 });
+                        .insert(DamagesEnemy {
+                            damage: 2.0,
+                            induces_fear: true,
+                        });
                 });
 
             audio_player.play(audio.lightning_explosion.clone());
